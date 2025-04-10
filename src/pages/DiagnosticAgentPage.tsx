@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +14,6 @@ import { AutoDiagnosticSettings } from "@/components/diagnostic/AutoDiagnosticSe
 import { useEnv } from "@/lib/config/useEnv";
 import { TestComponentStatus } from "@/components/diagnostic/TestComponentStatus";
 
-// Error boundary component properly imported from React
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
