@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { RefreshCw, Zap, AlertTriangle, Info, CheckCircle, XCircle, Clock, ArrowRight } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useSystemStatus, ModelStatus } from "@/contexts/SystemStatusContext";
+import { useSystemStatus, ModelStatus, ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { useToast } from "@/hooks/use-toast";
 import { DiagnosticReport } from "@/components/diagnostic/DiagnosticReport";
 import { SystemComponentStatus } from "@/components/diagnostic/SystemComponentStatus";
@@ -150,7 +150,7 @@ const DiagnosticAgentPage = () => {
             
             <TabsContent value="status" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
-                <SystemComponentStatus
+                <SystemComponentStatus<ModelInfo>
                   title="AI Models"
                   items={models}
                   renderActions={(model) => {
@@ -191,7 +191,7 @@ const DiagnosticAgentPage = () => {
                   }}
                 />
                 
-                <SystemComponentStatus
+                <SystemComponentStatus<ModuleStatus>
                   title="System Modules"
                   items={modules}
                   renderActions={(module) => {

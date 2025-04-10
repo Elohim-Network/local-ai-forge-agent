@@ -7,13 +7,13 @@ import { ModelInfo, ModuleStatus, ModelStatus } from "@/contexts/SystemStatusCon
 
 type ComponentItem = ModelInfo | ModuleStatus;
 
-interface SystemComponentStatusProps {
+interface SystemComponentStatusProps<T extends ComponentItem> {
   title: string;
-  items: ComponentItem[];
-  renderActions: (item: ComponentItem) => React.ReactNode;
+  items: T[];
+  renderActions: (item: T) => React.ReactNode;
 }
 
-export function SystemComponentStatus({ title, items, renderActions }: SystemComponentStatusProps) {
+export function SystemComponentStatus<T extends ComponentItem>({ title, items, renderActions }: SystemComponentStatusProps<T>) {
   // Type guard to determine if item is a ModelInfo
   const isModelInfo = (item: ComponentItem): item is ModelInfo => {
     return 'status' in item && typeof item.status === 'string';

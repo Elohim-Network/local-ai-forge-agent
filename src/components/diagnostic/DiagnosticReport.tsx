@@ -2,6 +2,7 @@
 import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, AlertTriangle, Clock } from "lucide-react";
+import { LucideIcon } from "lucide-react";
 
 interface DiagnosticReportProps {
   models: ModelInfo[];
@@ -129,7 +130,7 @@ export function DiagnosticReport({ models, modules, systemStatus, lastChecked }:
 interface SummaryItemProps {
   title: string;
   value: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   iconColor: string;
 }
 
