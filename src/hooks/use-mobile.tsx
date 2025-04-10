@@ -21,3 +21,6 @@ export function useMobileScreen() {
   
   return isMobile;
 }
+
+// Alias for backward compatibility
+export const useIsMobile = useMobileScreen;

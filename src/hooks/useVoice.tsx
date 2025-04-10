@@ -2,6 +2,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from "@/hooks/use-toast";
 
+// Add TypeScript declarations for the Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition?: typeof SpeechRecognition;
+    webkitSpeechRecognition?: typeof SpeechRecognition;
+  }
+}
+
 interface UseVoiceProps {
   enabled: boolean;
   autoListen: boolean;
@@ -26,8 +34,10 @@ export function useVoice({
   useEffect(() => {
     if (!enabled) return;
     
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // Fix for TypeScript and browser compatibility
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
@@ -90,7 +100,7 @@ export function useVoice({
     } else if ((!enabled || !autoListen) && isListening) {
       stopListening();
     }
-  }, [enabled, autoListen]);
+  }, [enabled, autoListen, isListening]);
 
   const startListening = () => {
     if (!enabled || !recognitionRef.current) return;
