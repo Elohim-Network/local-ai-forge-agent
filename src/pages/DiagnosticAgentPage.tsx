@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -149,6 +150,19 @@ const DiagnosticAgentPage = () => {
       }
     };
 
+    // Define typed components to avoid JSX parsing issues with inline generics
+    const ModelComponentStatus = SystemComponentStatus as React.ComponentType<{
+      title: string;
+      items: ModelInfo[];
+      renderActions: (item: ModelInfo) => React.ReactNode;
+    }>;
+
+    const ModuleComponentStatus = SystemComponentStatus as React.ComponentType<{
+      title: string;
+      items: ModuleStatus[];
+      renderActions: (item: ModuleStatus) => React.ReactNode;
+    }>;
+
     return (
       <div className="container mx-auto max-w-7xl py-6 space-y-8">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -228,7 +242,7 @@ const DiagnosticAgentPage = () => {
                     {useTestComponents ? (
                       <TestComponentStatus title="AI Models Test" />
                     ) : (
-                      <SystemComponentStatus<ModelInfo>
+                      <ModelComponentStatus
                         title="AI Models"
                         items={models}
                         renderActions={(model) => {
@@ -275,7 +289,7 @@ const DiagnosticAgentPage = () => {
                     {useTestComponents ? (
                       <TestComponentStatus title="System Modules Test" />
                     ) : (
-                      <SystemComponentStatus<ModuleStatus>
+                      <ModuleComponentStatus
                         title="System Modules"
                         items={modules}
                         renderActions={(module) => {
