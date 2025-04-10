@@ -18,7 +18,8 @@ import {
   Plus,
   MessageCircle,
   Package,
-  ServerCog
+  ServerCog,
+  ActivitySquare
 } from "lucide-react";
 
 export function Sidebar() {
@@ -35,6 +36,7 @@ export function Sidebar() {
     { name: "Chat", icon: MessageCircle, path: "/chat" },
     { name: "Modules", icon: Package, path: "/modules" },
     { name: "Model Connection", icon: ServerCog, path: "/model-connection" },
+    { name: "Diagnostic Agent", icon: ActivitySquare, path: "/diagnostic-agent" },
     { name: "Agents", icon: Bot, path: "/agents" },
     { name: "Workflows", icon: Workflow, path: "/workflows" },
     { name: "Web Apps", icon: Globe, path: "/web-apps" },

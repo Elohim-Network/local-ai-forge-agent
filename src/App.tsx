@@ -14,6 +14,7 @@ import ChatPage from "./pages/ChatPage";
 import ModelConnectionPage from "./pages/ModelConnectionPage";
 import PodcastingStudioPage from "./pages/modules/PodcastingStudioPage";
 import WebScraperPage from "./pages/modules/WebScraperPage";
+import DiagnosticAgentPage from "./pages/DiagnosticAgentPage";
 import NotFoundUpdated from "./pages/NotFoundUpdated";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/modules" element={<ModulesPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/model-connection" element={<ModelConnectionPage />} />
+              <Route path="/diagnostic-agent" element={<DiagnosticAgentPage />} />
               <Route path="/modules/ai-podcasting" element={<PodcastingStudioPage />} />
               <Route path="/modules/web-scraper" element={<WebScraperPage />} />
               {/* Add empty placeholder routes for navigation */}
