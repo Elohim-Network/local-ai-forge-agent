@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { toast } from "@/hooks/use-toast";
 
@@ -20,16 +21,25 @@ interface SpeechRecognition extends EventTarget {
   speaking?: boolean;
 }
 
+// Fixed SpeechRecognitionEvent interface to correctly represent the structure
 interface SpeechRecognitionEvent {
-  results: {
-    [index: number]: {
-      [index: number]: {
-        transcript: string;
-        isFinal: boolean;
-      };
-      isFinal: boolean;
-    };
-  };
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  readonly length: number;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
 }
 
 interface SpeechRecognitionErrorEvent {
@@ -69,17 +79,30 @@ export function useVoice({
       recognitionRef.current.interimResults = true;
       
       recognitionRef.current.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
+        // Process the speech recognition results correctly
+        let finalTranscript = '';
         
-        setTranscript(transcript);
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result[0] && result[0].transcript) {
+            if (result.isFinal) {
+              finalTranscript += result[0].transcript + ' ';
+            } else {
+              // For interim results
+              const interimTranscript = result[0].transcript;
+              setTranscript(interimTranscript);
+            }
+          }
+        }
         
-        // If it's a final result and we're recording (not continuous listening)
-        if (event.results[0].isFinal && isRecording) {
-          stopRecording();
-          onSpeechResult(transcript);
+        if (finalTranscript) {
+          setTranscript(finalTranscript);
+          
+          // If it's recording (not continuous listening) and we have a final result
+          if (isRecording && event.results[event.results.length - 1].isFinal) {
+            stopRecording();
+            onSpeechResult(finalTranscript);
+          }
         }
       };
       
