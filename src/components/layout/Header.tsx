@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -18,10 +19,12 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { useMobileScreen } from "@/hooks/use-mobile";
+import { TestRunDialog } from "@/components/system/TestRunDialog";
 
 export function Header() {
   // Use the mobile hook to handle responsive behavior
   const isMobile = useMobileScreen();
+  const [testRunDialogOpen, setTestRunDialogOpen] = useState(false);
 
   return (
     <header className="border-b border-border h-14 bg-background/95 backdrop-blur-sm flex items-center justify-between px-4">
@@ -36,7 +39,12 @@ export function Header() {
       </div>
       
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-2 hidden sm:inline-flex">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2 hidden sm:inline-flex"
+          onClick={() => setTestRunDialogOpen(true)}
+        >
           <PlayCircle size={16} />
           <span>Test Run</span>
         </Button>
@@ -69,6 +77,11 @@ export function Header() {
           </DropdownMenu>
         </div>
       </div>
+
+      <TestRunDialog 
+        open={testRunDialogOpen}
+        onOpenChange={setTestRunDialogOpen}
+      />
     </header>
   );
 }
