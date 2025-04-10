@@ -3,12 +3,49 @@ import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, User, Settings, RotateCcw, BrainCircuit, Image as ImageIcon } from "lucide-react";
+import { 
+  Bot, 
+  Send, 
+  Settings, 
+  RotateCcw, 
+  BrainCircuit, 
+  ImageIcon, 
+  Mic, 
+  MicOff, 
+  Volume2, 
+  VolumeX,
+  Search,
+  BookOpen,
+  Clock,
+  Trash,
+  XCircle
+} from "lucide-react";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSelector } from "@/components/chat/ModelSelector";
+import { ChatSettings, ChatSettings as ChatSettingsType } from "@/components/chat/ChatSettings";
 import { toast } from "@/hooks/use-toast";
+import { useVoice } from "@/hooks/useVoice";
+import { useChatMemory } from "@/hooks/useChatMemory";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { useMobileScreen } from "@/hooks/use-mobile";
 
 export interface Message {
   id: string;
@@ -18,6 +55,19 @@ export interface Message {
   type?: "text" | "image";
   imageUrl?: string;
 }
+
+const DEFAULT_SETTINGS: ChatSettingsType = {
+  memory: {
+    enabled: true,
+    saveHistory: true,
+  },
+  voice: {
+    enabled: false,
+    voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah by default
+    autoListen: false,
+    volume: 0.8,
+  },
+};
 
 const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -34,20 +84,95 @@ const ChatPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedModel, setSelectedModel] = useState("mistral-7b");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [settings, setSettings] = useState<ChatSettingsType>(DEFAULT_SETTINGS);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMobileScreen();
+  
+  // Initialize hooks
+  const { 
+    sessions, 
+    currentSessionId, 
+    setCurrentSessionId,
+    createSession, 
+    updateSession, 
+    searchQuery, 
+    searchResults, 
+    searchSessions,
+    deleteSession,
+    clearAllSessions
+  } = useChatMemory({
+    enabled: settings.memory.enabled,
+    saveHistory: settings.memory.saveHistory
+  });
+  
+  const { 
+    isListening, 
+    isRecording, 
+    isSpeaking,
+    transcript, 
+    startRecording, 
+    stopRecording,
+    speak,
+    stopSpeaking
+  } = useVoice({
+    enabled: settings.voice.enabled,
+    autoListen: settings.voice.autoListen,
+    onSpeechResult: (text) => {
+      if (text.trim()) {
+        setInput(text);
+        // Auto-send if setting enabled and text is longer than 10 chars
+        if (settings.voice.autoListen && text.length > 10) {
+          setTimeout(() => {
+            sendMessage(text);
+          }, 500);
+        }
+      }
+    },
+    volume: settings.voice.volume
+  });
   
   // Auto-scroll to the bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  // Process voice when settings change
+  useEffect(() => {
+    if (!settings.voice.enabled && isSpeaking) {
+      stopSpeaking();
+    }
+  }, [settings.voice.enabled]);
+  
+  // Speak AI responses when voice is enabled
+  useEffect(() => {
+    if (settings.voice.enabled && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "assistant" && lastMessage.type === "text") {
+        speak(lastMessage.content);
+      }
+    }
+  }, [messages, settings.voice.enabled]);
+  
+  // Initialize or update session
+  useEffect(() => {
+    if (settings.memory.enabled) {
+      if (!currentSessionId && messages.length > 0) {
+        createSession(messages);
+      } else if (currentSessionId) {
+        updateSession(currentSessionId, messages);
+      }
+    }
+  }, [messages, settings.memory.enabled]);
+  
+  const sendMessage = async (messageText = input) => {
+    if (!messageText.trim()) return;
     
     // Create a new user message
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input,
+      content: messageText,
       role: "user",
       timestamp: new Date(),
       type: "text"
@@ -60,14 +185,14 @@ const ChatPage = () => {
     
     try {
       // Check if the message is requesting an image
-      const isImageRequest = /generate|create|draw|make|show\s+(an|a)?\s+(image|picture|photo|artwork|drawing)/i.test(input);
+      const isImageRequest = /generate|create|draw|make|show\s+(an|a)?\s+(image|picture|photo|artwork|drawing)/i.test(messageText);
       
       if (isImageRequest && selectedModel === "stable-diffusion") {
         // Handle image generation
-        await generateImage(input);
+        await generateImage(messageText);
       } else {
         // Send message to local Mistral model
-        await sendToLocalModel(input, selectedModel);
+        await sendToLocalModel(messageText, selectedModel);
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -257,6 +382,195 @@ const ChatPage = () => {
         type: "text"
       }
     ]);
+    
+    // Create a new session when clearing
+    if (settings.memory.enabled) {
+      createSession([{
+        id: "welcome",
+        content: "Chat cleared. How can I help you today?",
+        role: "assistant",
+        timestamp: new Date(),
+        type: "text"
+      }]);
+    }
+  };
+  
+  const loadSession = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session) {
+      setMessages(session.messages);
+      setCurrentSessionId(sessionId);
+      setHistoryOpen(false);
+    }
+  };
+  
+  const handleSaveSettings = (newSettings: ChatSettingsType) => {
+    setSettings(newSettings);
+    
+    // Log for debugging
+    console.log("Settings updated:", newSettings);
+    
+    // Handle enabling/disabling features
+    if (!newSettings.memory.enabled && settings.memory.enabled) {
+      setCurrentSessionId('');
+    }
+    
+    // Save settings to localStorage
+    localStorage.setItem('chat-settings', JSON.stringify(newSettings));
+  };
+  
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('chat-settings');
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (error) {
+        console.error("Error parsing saved settings:", error);
+      }
+    }
+  }, []);
+  
+  // Toggle voice button handler
+  const toggleVoiceChat = () => {
+    setSettings({
+      ...settings,
+      voice: {
+        ...settings.voice,
+        enabled: !settings.voice.enabled
+      }
+    });
+    
+    if (!settings.voice.enabled) {
+      toast({
+        title: "Voice chat enabled",
+        description: "The AI will now read responses out loud."
+      });
+    } else {
+      stopSpeaking();
+    }
+  };
+  
+  // Render history list (for both mobile and desktop)
+  const renderHistoryList = () => (
+    <div className="space-y-2 p-1">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-medium text-lg">Chat History</h3>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={clearAllSessions}
+          disabled={sessions.length === 0}
+        >
+          Clear All
+        </Button>
+      </div>
+      
+      {sessions.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <Clock className="mx-auto h-8 w-8 mb-2 opacity-50" />
+          <p>No chat history yet</p>
+          <p className="text-sm">Your conversations will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+          {sessions.map(session => (
+            <div 
+              key={session.id} 
+              className={`p-3 rounded-md hover:bg-muted cursor-pointer flex justify-between ${
+                currentSessionId === session.id ? 'bg-muted' : ''
+              }`}
+              onClick={() => loadSession(session.id)}
+            >
+              <div>
+                <div className="font-medium">{session.title}</div>
+                <div className="text-xs text-muted-foreground">
+                  {session.timestamp.toLocaleString()} • {session.messages.length} messages
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="opacity-0 group-hover:opacity-100 h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteSession(session.id);
+                }}
+              >
+                <Trash className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  
+  // Render search results (for both mobile and desktop)
+  const renderSearchResults = () => {
+    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      searchSessions(searchQuery);
+    };
+    
+    return (
+      <div className="space-y-4 p-1">
+        <h3 className="font-medium text-lg mb-4">Search Chat History</h3>
+        
+        <form onSubmit={handleSearch} className="flex space-x-2">
+          <Input 
+            placeholder="Search conversations..." 
+            value={searchQuery}
+            onChange={(e) => searchSessions(e.target.value)}
+            className="flex-1"
+          />
+          <Button type="submit">
+            <Search className="h-4 w-4 mr-2" />
+            Search
+          </Button>
+        </form>
+        
+        <div className="mt-4">
+          {searchResults.length === 0 && searchQuery && (
+            <div className="text-center py-4 text-muted-foreground">
+              <p>No results found</p>
+            </div>
+          )}
+          
+          {searchResults.map(result => (
+            <div key={result.sessionId} className="mb-4">
+              <div 
+                className="p-2 rounded-md bg-muted cursor-pointer"
+                onClick={() => loadSession(result.sessionId)}
+              >
+                <div className="font-medium">
+                  {sessions.find(s => s.id === result.sessionId)?.title || "Unnamed chat"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {sessions.find(s => s.id === result.sessionId)?.timestamp.toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="pl-2 mt-2 border-l-2 border-muted space-y-2">
+                {result.messages.slice(0, 3).map(msg => (
+                  <div key={msg.id} className="text-sm">
+                    <span className="font-medium">{msg.role === 'user' ? 'You: ' : 'AI: '}</span>
+                    {msg.content.length > 100 
+                      ? msg.content.substring(0, 100) + "..." 
+                      : msg.content}
+                  </div>
+                ))}
+                {result.messages.length > 3 && (
+                  <div className="text-xs text-muted-foreground">
+                    +{result.messages.length - 3} more messages
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
   
   return (
@@ -277,24 +591,157 @@ const ChatPage = () => {
                 />
               </div>
               
-              <div className="mt-auto space-y-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start gap-2"
-                  onClick={clearChat}
-                >
-                  <RotateCcw size={16} />
-                  <span>Clear Chat</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start gap-2"
-                >
+              <div className="space-y-2 mt-6">
+                <h3 className="font-medium flex items-center gap-2">
                   <Settings size={16} />
-                  <span>Chat Settings</span>
-                </Button>
+                  <span>Options</span>
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Voice toggle button */}
+                  <Button
+                    variant={settings.voice.enabled ? "default" : "outline"}
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={toggleVoiceChat}
+                  >
+                    {settings.voice.enabled ? (
+                      <Volume2 size={16} />
+                    ) : (
+                      <VolumeX size={16} />
+                    )}
+                    <span>Voice {settings.voice.enabled ? "On" : "Off"}</span>
+                  </Button>
+                  
+                  {/* Search button */}
+                  {isMobile ? (
+                    <Drawer open={searchOpen} onOpenChange={setSearchOpen}>
+                      <DrawerTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2"
+                        >
+                          <Search size={16} />
+                          <span>Search</span>
+                        </Button>
+                      </DrawerTrigger>
+                      <DrawerContent>
+                        <DrawerHeader>
+                          <DrawerTitle>Search Chat History</DrawerTitle>
+                          <DrawerDescription>
+                            Find previous conversations
+                          </DrawerDescription>
+                        </DrawerHeader>
+                        <div className="px-4">
+                          {renderSearchResults()}
+                        </div>
+                        <DrawerFooter>
+                          <DrawerClose asChild>
+                            <Button variant="outline">Close</Button>
+                          </DrawerClose>
+                        </DrawerFooter>
+                      </DrawerContent>
+                    </Drawer>
+                  ) : (
+                    <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+                      <SheetTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2"
+                        >
+                          <Search size={16} />
+                          <span>Search</span>
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="sm:max-w-md">
+                        {renderSearchResults()}
+                      </SheetContent>
+                    </Sheet>
+                  )}
+                  
+                  {/* History button */}
+                  {isMobile ? (
+                    <Drawer open={historyOpen} onOpenChange={setHistoryOpen}>
+                      <DrawerTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2"
+                        >
+                          <BookOpen size={16} />
+                          <span>History</span>
+                        </Button>
+                      </DrawerTrigger>
+                      <DrawerContent>
+                        <DrawerHeader>
+                          <DrawerTitle>Chat History</DrawerTitle>
+                          <DrawerDescription>
+                            Your previous conversations
+                          </DrawerDescription>
+                        </DrawerHeader>
+                        <div className="px-4">
+                          {renderHistoryList()}
+                        </div>
+                        <DrawerFooter>
+                          <DrawerClose asChild>
+                            <Button variant="outline">Close</Button>
+                          </DrawerClose>
+                        </DrawerFooter>
+                      </DrawerContent>
+                    </Drawer>
+                  ) : (
+                    <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+                      <SheetTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2"
+                        >
+                          <BookOpen size={16} />
+                          <span>History</span>
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="sm:max-w-md">
+                        {renderHistoryList()}
+                      </SheetContent>
+                    </Sheet>
+                  )}
+                  
+                  {/* Clear chat button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={clearChat}
+                  >
+                    <RotateCcw size={16} />
+                    <span>Clear Chat</span>
+                  </Button>
+                  
+                  {/* Settings button */}
+                  <ChatSettings 
+                    settings={settings}
+                    onSaveSettings={handleSaveSettings}
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-auto">
+                <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">
+                  {settings.memory.enabled ? (
+                    <p>Memory: <span className="font-medium">Enabled</span></p>
+                  ) : (
+                    <p>Memory: <span className="text-muted-foreground">Disabled</span></p>
+                  )}
+                  
+                  {settings.voice.enabled ? (
+                    <p>Voice: <span className="font-medium">Enabled</span></p>
+                  ) : (
+                    <p>Voice: <span className="text-muted-foreground">Disabled</span></p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -308,6 +755,18 @@ const ChatPage = () => {
                 <h2 className="font-medium flex items-center gap-2">
                   <Bot size={18} className="text-primary" />
                   Chat with {selectedModel === "mistral-7b" ? "Mistral-7B" : selectedModel === "llama-13b" ? "Llama-13B" : selectedModel === "stable-diffusion" ? "Stable Diffusion" : "GPT-3.5 Turbo"}
+                  
+                  {isListening && (
+                    <span className="ml-auto text-xs text-primary animate-pulse flex items-center">
+                      <Mic size={14} className="mr-1" /> Listening...
+                    </span>
+                  )}
+                  
+                  {isSpeaking && (
+                    <span className="ml-auto text-xs text-primary animate-pulse flex items-center">
+                      <Volume2 size={14} className="mr-1" /> Speaking...
+                    </span>
+                  )}
                 </h2>
               </div>
               
@@ -321,18 +780,56 @@ const ChatPage = () => {
               </ScrollArea>
               
               <div className="p-4 border-t">
+                {isRecording && (
+                  <div className="mb-2 px-3 py-2 bg-muted rounded-md flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-sm">Recording: {transcript}</span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => stopRecording()}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type your message..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    disabled={isProcessing}
+                    disabled={isProcessing || isRecording}
                     className="flex-1"
                   />
+                  
+                  {/* Voice recording button */}
+                  {settings.voice.enabled && (
+                    <Button
+                      variant={isRecording ? "default" : "outline"}
+                      onClick={() => {
+                        if (isRecording) {
+                          stopRecording();
+                        } else {
+                          startRecording();
+                        }
+                      }}
+                      disabled={isProcessing}
+                      className="shrink-0"
+                    >
+                      {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+                      <span className="sr-only">
+                        {isRecording ? "Stop Recording" : "Start Recording"}
+                      </span>
+                    </Button>
+                  )}
+                  
                   <Button 
-                    onClick={sendMessage} 
-                    disabled={isProcessing || !input.trim()} 
+                    onClick={() => sendMessage()} 
+                    disabled={isProcessing || isRecording || !input.trim()} 
                     className="shrink-0"
                   >
                     <Send size={18} />
@@ -347,6 +844,7 @@ const ChatPage = () => {
                       }}
                       className="shrink-0"
                       title="Generate image"
+                      disabled={isProcessing || isRecording}
                     >
                       <ImageIcon size={18} />
                       <span className="sr-only">Generate image</span>
