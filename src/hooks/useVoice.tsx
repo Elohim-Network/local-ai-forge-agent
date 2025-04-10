@@ -1,13 +1,39 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { toast } from "@/hooks/use-toast";
 
 // Add TypeScript declarations for the Web Speech API
 declare global {
   interface Window {
-    SpeechRecognition?: typeof SpeechRecognition;
-    webkitSpeechRecognition?: typeof SpeechRecognition;
+    SpeechRecognition?: any;
+    webkitSpeechRecognition?: any;
   }
+}
+
+// Define SpeechRecognition interface
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  start: () => void;
+  stop: () => void;
+  speaking?: boolean;
+}
+
+interface SpeechRecognitionEvent {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+        isFinal: boolean;
+      };
+      isFinal: boolean;
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
 }
 
 interface UseVoiceProps {
@@ -35,10 +61,10 @@ export function useVoice({
     if (!enabled) return;
     
     // Fix for TypeScript and browser compatibility
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
+    if (SpeechRecognitionAPI) {
+      recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       
