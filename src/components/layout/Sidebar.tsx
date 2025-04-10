@@ -15,7 +15,10 @@ import {
   Layers, 
   ChevronLeft,
   ChevronRight,
-  Plus
+  Plus,
+  MessageCircle,
+  Package,
+  ServerCog
 } from "lucide-react";
 
 export function Sidebar() {
@@ -29,6 +32,9 @@ export function Sidebar() {
   const navItems = [
     { name: "Dashboard", icon: Home, path: "/" },
     { name: "AI Models", icon: BrainCircuit, path: "/models" },
+    { name: "Chat", icon: MessageCircle, path: "/chat" },
+    { name: "Modules", icon: Package, path: "/modules" },
+    { name: "Model Connection", icon: ServerCog, path: "/model-connection" },
     { name: "Agents", icon: Bot, path: "/agents" },
     { name: "Workflows", icon: Workflow, path: "/workflows" },
     { name: "Web Apps", icon: Globe, path: "/web-apps" },

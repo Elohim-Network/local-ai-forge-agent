@@ -8,6 +8,11 @@ import { MainLayout } from "./components/layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import ModelsPage from "./pages/ModelsPage";
 import WorkspacePage from "./pages/WorkspacePage";
+import ModulesPage from "./pages/ModulesPage";
+import ChatPage from "./pages/ChatPage";
+import ModelConnectionPage from "./pages/ModelConnectionPage";
+import PodcastingStudioPage from "./pages/modules/PodcastingStudioPage";
+import WebScraperPage from "./pages/modules/WebScraperPage";
 import NotFoundUpdated from "./pages/NotFoundUpdated";
 
 const queryClient = new QueryClient();
@@ -23,12 +28,20 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/project/:id" element={<WorkspacePage />} />
+            <Route path="/modules" element={<ModulesPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/model-connection" element={<ModelConnectionPage />} />
+            <Route path="/modules/ai-podcasting" element={<PodcastingStudioPage />} />
+            <Route path="/modules/web-scraper" element={<WebScraperPage />} />
             {/* Add empty placeholder routes for navigation */}
             <Route path="/agents" element={<ComingSoon title="AI Agents" />} />
             <Route path="/workflows" element={<ComingSoon title="Workflows" />} />
             <Route path="/web-apps" element={<ComingSoon title="Web Apps" />} />
             <Route path="/components" element={<ComingSoon title="UI Components" />} />
-            <Route path="/modules" element={<ComingSoon title="Code Modules" />} />
+            <Route path="/modules/leads" element={<ComingSoon title="Leads Manager" />} />
+            <Route path="/modules/email-campaign" element={<ComingSoon title="Email Campaign" />} />
+            <Route path="/modules/calendar-tasks" element={<ComingSoon title="Calendar & Tasks" />} />
+            <Route path="/modules/integrations" element={<ComingSoon title="Integrations" />} />
             <Route path="/resources" element={<ComingSoon title="Resources" />} />
             <Route path="/settings" element={<ComingSoon title="Settings" />} />
           </Route>
