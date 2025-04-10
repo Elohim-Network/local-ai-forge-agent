@@ -51,13 +51,21 @@ interface UseVoiceProps {
   autoListen: boolean;
   onSpeechResult: (text: string) => void;
   volume: number;
+  continuousListening?: boolean;
+  onInterimResult?: (text: string) => void;
+  silenceTimeout?: number;
+  minConfidence?: number;
 }
 
 export function useVoice({ 
   enabled = false, 
   autoListen = false, 
   onSpeechResult,
-  volume = 0.8
+  volume = 0.8,
+  continuousListening = false,
+  onInterimResult,
+  silenceTimeout = 1500,
+  minConfidence = 0.5
 }: UseVoiceProps) {
   const [isListening, setIsListening] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -65,6 +73,8 @@ export function useVoice({
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const lastSpeechRef = useRef<number>(Date.now());
 
   // Initialize speech recognition
   useEffect(() => {
@@ -81,18 +91,61 @@ export function useVoice({
       recognitionRef.current.onresult = (event) => {
         // Process the speech recognition results correctly
         let finalTranscript = '';
+        let interimTranscript = '';
+        let hasSpeech = false;
         
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
           if (result[0] && result[0].transcript) {
+            // Reset silence timer when we get new speech
+            lastSpeechRef.current = Date.now();
+            hasSpeech = true;
+            
             if (result.isFinal) {
-              finalTranscript += result[0].transcript + ' ';
+              if (result[0].confidence >= minConfidence) {
+                finalTranscript += result[0].transcript + ' ';
+              }
             } else {
               // For interim results
-              const interimTranscript = result[0].transcript;
+              interimTranscript = result[0].transcript;
+              if (onInterimResult && interimTranscript.trim()) {
+                onInterimResult(interimTranscript);
+              }
               setTranscript(interimTranscript);
             }
           }
+        }
+        
+        // Handle continuous listening mode
+        if (continuousListening && hasSpeech) {
+          // Clear any existing silence detection timer
+          if (silenceTimerRef.current) {
+            window.clearTimeout(silenceTimerRef.current);
+          }
+          
+          // Set a new timer to detect when speaking stops
+          silenceTimerRef.current = window.setTimeout(() => {
+            if (Date.now() - lastSpeechRef.current >= silenceTimeout && interimTranscript.trim()) {
+              // If there's been silence for the timeout period and we have interim results,
+              // treat the interim transcript as final
+              onSpeechResult(interimTranscript);
+              setTranscript('');
+              
+              // Restart recognition to clear buffer
+              if (recognitionRef.current) {
+                try {
+                  recognitionRef.current.stop();
+                  setTimeout(() => {
+                    if (recognitionRef.current && isListening) {
+                      recognitionRef.current.start();
+                    }
+                  }, 100);
+                } catch (error) {
+                  console.error("Error restarting recognition:", error);
+                }
+              }
+            }
+          }, silenceTimeout);
         }
         
         if (finalTranscript) {
@@ -102,6 +155,10 @@ export function useVoice({
           if (isRecording && event.results[event.results.length - 1].isFinal) {
             stopRecording();
             onSpeechResult(finalTranscript);
+          } else if (continuousListening && finalTranscript.trim()) {
+            // In continuous mode, send each final result immediately
+            onSpeechResult(finalTranscript);
+            setTranscript('');
           }
         }
       };
@@ -139,8 +196,13 @@ export function useVoice({
       if (synthRef.current && synthRef.current.speaking) {
         synthRef.current.cancel();
       }
+      
+      // Clear any timers
+      if (silenceTimerRef.current) {
+        window.clearTimeout(silenceTimerRef.current);
+      }
     };
-  }, [enabled]);
+  }, [enabled, minConfidence, silenceTimeout]);
   
   // Auto-listen mode
   useEffect(() => {
@@ -168,6 +230,12 @@ export function useVoice({
     try {
       recognitionRef.current.stop();
       setIsListening(false);
+      
+      // Clear any silence timer
+      if (silenceTimerRef.current) {
+        window.clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
     } catch (error) {
       console.error("Error stopping speech recognition:", error);
     }

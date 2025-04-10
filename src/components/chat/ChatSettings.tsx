@@ -44,6 +44,9 @@ export interface ChatSettings {
     voiceId: string;
     autoListen: boolean;
     volume: number;
+    continuousListening?: boolean;
+    silenceTimeout?: number;
+    minConfidence?: number;
   };
 }
 
@@ -57,6 +60,9 @@ const DEFAULT_SETTINGS: ChatSettings = {
     voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah by default
     autoListen: false,
     volume: 0.8,
+    continuousListening: false,
+    silenceTimeout: 1500,
+    minConfidence: 0.5
   },
 };
 
@@ -201,6 +207,78 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
               </div>
               <p className="text-sm text-muted-foreground">
                 Automatically listen for voice commands without pressing a button
+              </p>
+            </div>
+
+            {/* New Hands-Free Voice Communication Settings */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="continuous-listening" className="font-medium">Hands-Free Mode</Label>
+                <Switch
+                  id="continuous-listening"
+                  checked={localSettings.voice.continuousListening}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      voice: { 
+                        ...localSettings.voice, 
+                        continuousListening: checked,
+                        // If enabling hands-free, make sure auto-listen is also on
+                        autoListen: checked ? true : localSettings.voice.autoListen 
+                      },
+                    })
+                  }
+                  disabled={!localSettings.voice.enabled}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Enable real-time voice communication (automatically enables auto-listen)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="silence-timeout">
+                Silence Timeout: {localSettings.voice.silenceTimeout || 1500}ms
+              </Label>
+              <Slider
+                id="silence-timeout"
+                defaultValue={[localSettings.voice.silenceTimeout || 1500]}
+                min={500}
+                max={5000}
+                step={100}
+                onValueChange={([value]) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    voice: { ...localSettings.voice, silenceTimeout: value },
+                  })
+                }
+                disabled={!localSettings.voice.enabled || !localSettings.voice.continuousListening}
+              />
+              <p className="text-xs text-muted-foreground">
+                How long to wait for silence before processing speech in hands-free mode
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="speech-confidence">
+                Minimum Confidence: {Math.round((localSettings.voice.minConfidence || 0.5) * 100)}%
+              </Label>
+              <Slider
+                id="speech-confidence"
+                defaultValue={[localSettings.voice.minConfidence || 0.5]}
+                min={0.1}
+                max={0.9}
+                step={0.05}
+                onValueChange={([value]) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    voice: { ...localSettings.voice, minConfidence: value },
+                  })
+                }
+                disabled={!localSettings.voice.enabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                Threshold for speech recognition accuracy
               </p>
             </div>
 

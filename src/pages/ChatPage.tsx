@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +65,9 @@ const DEFAULT_SETTINGS: ChatSettingsType = {
     voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah by default
     autoListen: false,
     volume: 0.8,
+    continuousListening: false,
+    silenceTimeout: 1500,
+    minConfidence: 0.5
   },
 };
 
@@ -90,7 +92,6 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobileScreen();
   
-  // Initialize hooks
   const { 
     sessions, 
     currentSessionId, 
@@ -122,7 +123,6 @@ const ChatPage = () => {
     onSpeechResult: (text) => {
       if (text.trim()) {
         setInput(text);
-        // Auto-send if setting enabled and text is longer than 10 chars
         if (settings.voice.autoListen && text.length > 10) {
           setTimeout(() => {
             sendMessage(text);
@@ -130,22 +130,27 @@ const ChatPage = () => {
         }
       }
     },
-    volume: settings.voice.volume
+    volume: settings.voice.volume,
+    continuousListening: settings.voice.continuousListening,
+    onInterimResult: (text) => {
+      if (settings.voice.continuousListening && text.trim()) {
+        setInput(text);
+      }
+    },
+    silenceTimeout: settings.voice.silenceTimeout,
+    minConfidence: settings.voice.minConfidence
   });
   
-  // Auto-scroll to the bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
-  // Process voice when settings change
   useEffect(() => {
     if (!settings.voice.enabled && isSpeaking) {
       stopSpeaking();
     }
   }, [settings.voice.enabled]);
   
-  // Speak AI responses when voice is enabled
   useEffect(() => {
     if (settings.voice.enabled && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
@@ -155,7 +160,6 @@ const ChatPage = () => {
     }
   }, [messages, settings.voice.enabled]);
   
-  // Initialize or update session
   useEffect(() => {
     if (settings.memory.enabled) {
       if (!currentSessionId && messages.length > 0) {
@@ -169,7 +173,6 @@ const ChatPage = () => {
   const sendMessage = async (messageText = input) => {
     if (!messageText.trim()) return;
     
-    // Create a new user message
     const userMessage: Message = {
       id: Date.now().toString(),
       content: messageText,
@@ -178,20 +181,16 @@ const ChatPage = () => {
       type: "text"
     };
     
-    // Add user message to the chat
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsProcessing(true);
     
     try {
-      // Check if the message is requesting an image
       const isImageRequest = /generate|create|draw|make|show\s+(an|a)?\s+(image|picture|photo|artwork|drawing)/i.test(messageText);
       
       if (isImageRequest && selectedModel === "stable-diffusion") {
-        // Handle image generation
         await generateImage(messageText);
       } else {
-        // Send message to local Mistral model
         await sendToLocalModel(messageText, selectedModel);
       }
     } catch (error) {
@@ -209,7 +208,6 @@ const ChatPage = () => {
     let endpoint = "";
     let requestBody: any = {};
     
-    // Configure endpoint and request body based on selected model
     if (model === "mistral-7b") {
       endpoint = "http://localhost:8000/v1/chat/completions";
       requestBody = {
@@ -249,7 +247,6 @@ const ChatPage = () => {
     }
     
     try {
-      // Actually make the API call
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -264,7 +261,6 @@ const ChatPage = () => {
       
       const data = await response.json();
       
-      // Create a response message
       const responseMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: data.choices[0].message.content,
@@ -273,12 +269,10 @@ const ChatPage = () => {
         type: "text"
       };
       
-      // Add response to the chat
       setMessages(prev => [...prev, responseMessage]);
     } catch (error) {
       console.error("Error connecting to model:", error);
       
-      // Add error response
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: "I couldn't connect to the local model. Please check that your model server is running at http://localhost:8000",
@@ -297,7 +291,6 @@ const ChatPage = () => {
     setIsGeneratingImage(true);
     
     try {
-      // Let the user know we're generating the image
       const processingMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: "Generating image based on your request...",
@@ -308,7 +301,6 @@ const ChatPage = () => {
       
       setMessages(prev => [...prev, processingMessage]);
       
-      // Connect to the Stable Diffusion API
       const response = await fetch("http://localhost:7860/sdapi/v1/txt2img", {
         method: "POST",
         headers: {
@@ -330,11 +322,9 @@ const ChatPage = () => {
       
       const data = await response.json();
       
-      // The API returns a base64 encoded image
       const imageBase64 = data.images[0];
       const imageUrl = `data:image/png;base64,${imageBase64}`;
       
-      // Create an image message
       const imageMessage: Message = {
         id: (Date.now() + 2).toString(),
         content: prompt,
@@ -344,12 +334,10 @@ const ChatPage = () => {
         imageUrl: imageUrl
       };
       
-      // Add image to the chat
       setMessages(prev => [...prev.filter(msg => msg.id !== processingMessage.id), imageMessage]);
     } catch (error) {
       console.error("Error generating image:", error);
       
-      // Add error response
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
         content: "I couldn't generate the image. Please check that Stable Diffusion is running at http://localhost:7860",
@@ -383,7 +371,6 @@ const ChatPage = () => {
       }
     ]);
     
-    // Create a new session when clearing
     if (settings.memory.enabled) {
       createSession([{
         id: "welcome",
@@ -407,19 +394,15 @@ const ChatPage = () => {
   const handleSaveSettings = (newSettings: ChatSettingsType) => {
     setSettings(newSettings);
     
-    // Log for debugging
     console.log("Settings updated:", newSettings);
     
-    // Handle enabling/disabling features
     if (!newSettings.memory.enabled && settings.memory.enabled) {
       setCurrentSessionId('');
     }
     
-    // Save settings to localStorage
     localStorage.setItem('chat-settings', JSON.stringify(newSettings));
   };
   
-  // Load settings from localStorage on mount
   useEffect(() => {
     const savedSettings = localStorage.getItem('chat-settings');
     if (savedSettings) {
@@ -431,7 +414,6 @@ const ChatPage = () => {
     }
   }, []);
   
-  // Toggle voice button handler
   const toggleVoiceChat = () => {
     setSettings({
       ...settings,
@@ -444,14 +426,15 @@ const ChatPage = () => {
     if (!settings.voice.enabled) {
       toast({
         title: "Voice chat enabled",
-        description: "The AI will now read responses out loud."
+        description: settings.voice.continuousListening 
+          ? "Hands-free voice communication is active." 
+          : "The AI will now read responses out loud."
       });
     } else {
       stopSpeaking();
     }
   };
   
-  // Render history list (for both mobile and desktop)
   const renderHistoryList = () => (
     <div className="space-y-2 p-1">
       <div className="flex justify-between items-center mb-4">
@@ -506,7 +489,6 @@ const ChatPage = () => {
     </div>
   );
   
-  // Render search results (for both mobile and desktop)
   const renderSearchResults = () => {
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -576,7 +558,6 @@ const ChatPage = () => {
   return (
     <div className="container mx-auto py-6">
       <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-10rem)]">
-        {/* Sidebar with model selection */}
         <div className="w-full md:w-64 shrink-0">
           <Card className="h-full">
             <CardContent className="p-4 h-full flex flex-col gap-4">
@@ -598,7 +579,6 @@ const ChatPage = () => {
                 </h3>
                 
                 <div className="grid grid-cols-2 gap-2">
-                  {/* Voice toggle button */}
                   <Button
                     variant={settings.voice.enabled ? "default" : "outline"}
                     size="sm"
@@ -613,7 +593,6 @@ const ChatPage = () => {
                     <span>Voice {settings.voice.enabled ? "On" : "Off"}</span>
                   </Button>
                   
-                  {/* Search button */}
                   {isMobile ? (
                     <Drawer open={searchOpen} onOpenChange={setSearchOpen}>
                       <DrawerTrigger asChild>
@@ -661,7 +640,6 @@ const ChatPage = () => {
                     </Sheet>
                   )}
                   
-                  {/* History button */}
                   {isMobile ? (
                     <Drawer open={historyOpen} onOpenChange={setHistoryOpen}>
                       <DrawerTrigger asChild>
@@ -709,7 +687,6 @@ const ChatPage = () => {
                     </Sheet>
                   )}
                   
-                  {/* Clear chat button */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -720,7 +697,6 @@ const ChatPage = () => {
                     <span>Clear Chat</span>
                   </Button>
                   
-                  {/* Settings button */}
                   <ChatSettings 
                     settings={settings}
                     onSaveSettings={handleSaveSettings}
@@ -747,9 +723,8 @@ const ChatPage = () => {
           </Card>
         </div>
         
-        {/* Main chat area */}
         <div className="flex-1 flex flex-col h-full">
-          <Card className="flex-1 flex flex-col h-full overflow-hidden">
+          <Card className="h-full">
             <CardContent className="p-0 flex flex-col h-full">
               <div className="border-b p-3">
                 <h2 className="font-medium flex items-center gap-2">
@@ -758,7 +733,8 @@ const ChatPage = () => {
                   
                   {isListening && (
                     <span className="ml-auto text-xs text-primary animate-pulse flex items-center">
-                      <Mic size={14} className="mr-1" /> Listening...
+                      <Mic size={14} className="mr-1" /> 
+                      {settings.voice.continuousListening ? "Hands-free mode active..." : "Listening..."}
                     </span>
                   )}
                   
@@ -795,10 +771,19 @@ const ChatPage = () => {
                     </Button>
                   </div>
                 )}
+                
+                {settings.voice.continuousListening && settings.voice.enabled && isListening && (
+                  <div className="mb-2 px-3 py-2 bg-primary/10 rounded-md flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      <span className="text-sm">Hands-free mode: {transcript || "Listening..."}</span>
+                    </div>
+                  </div>
+                )}
               
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Type your message..."
+                    placeholder={settings.voice.continuousListening && settings.voice.enabled ? "Speak or type your message..." : "Type your message..."}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -806,12 +791,40 @@ const ChatPage = () => {
                     className="flex-1"
                   />
                   
-                  {/* Voice recording button */}
                   {settings.voice.enabled && (
                     <Button
-                      variant={isRecording ? "default" : "outline"}
+                      variant={isRecording || (isListening && settings.voice.continuousListening) ? "default" : "outline"}
                       onClick={() => {
-                        if (isRecording) {
+                        if (settings.voice.continuousListening) {
+                          if (isListening) {
+                            stopRecording();
+                            setSettings({
+                              ...settings,
+                              voice: {
+                                ...settings.voice,
+                                autoListen: false,
+                                continuousListening: false
+                              }
+                            });
+                            toast({
+                              title: "Hands-free mode disabled",
+                              description: "Returning to manual voice input mode."
+                            });
+                          } else {
+                            setSettings({
+                              ...settings,
+                              voice: {
+                                ...settings.voice,
+                                autoListen: true,
+                                continuousListening: true
+                              }
+                            });
+                            toast({
+                              title: "Hands-free mode enabled",
+                              description: "I'm listening continuously for your voice."
+                            });
+                          }
+                        } else if (isRecording) {
                           stopRecording();
                         } else {
                           startRecording();
@@ -819,8 +832,9 @@ const ChatPage = () => {
                       }}
                       disabled={isProcessing}
                       className="shrink-0"
+                      title={settings.voice.continuousListening ? "Toggle hands-free mode" : (isRecording ? "Stop Recording" : "Start Recording")}
                     >
-                      {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+                      {isRecording || (isListening && settings.voice.continuousListening) ? <MicOff size={18} /> : <Mic size={18} />}
                       <span className="sr-only">
                         {isRecording ? "Stop Recording" : "Start Recording"}
                       </span>
@@ -851,6 +865,7 @@ const ChatPage = () => {
                     </Button>
                   )}
                 </div>
+                
                 <div className="text-xs text-muted-foreground mt-2 text-center">
                   Connected to local model at {selectedModel === "stable-diffusion" ? "localhost:7860" : "localhost:8000"}
                 </div>
