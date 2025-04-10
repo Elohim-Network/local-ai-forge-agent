@@ -25,7 +25,7 @@ const ModulesPage = () => {
       description: "Track and manage customer leads and opportunities",
       category: "Business",
       icon: "users",
-      status: "available"
+      status: "available" as "available"
     },
     {
       id: "web-scraper",
@@ -33,7 +33,7 @@ const ModulesPage = () => {
       description: "Extract data from websites automatically",
       category: "Data",
       icon: "search",
-      status: "available"
+      status: "available" as "available"
     },
     {
       id: "email-campaign",
@@ -41,7 +41,7 @@ const ModulesPage = () => {
       description: "Create and manage email marketing campaigns",
       category: "Marketing",
       icon: "mail",
-      status: "available"
+      status: "available" as "available"
     },
     {
       id: "calendar-tasks",
@@ -49,7 +49,7 @@ const ModulesPage = () => {
       description: "Manage appointments and track tasks",
       category: "Business",
       icon: "calendar",
-      status: "available"
+      status: "available" as "available"
     },
     {
       id: "integrations",
@@ -57,7 +57,7 @@ const ModulesPage = () => {
       description: "Connect with third-party services and APIs",
       category: "Developer",
       icon: "link",
-      status: "available"
+      status: "available" as "available"
     },
     {
       id: "ai-podcasting",
@@ -65,7 +65,7 @@ const ModulesPage = () => {
       description: "Create AI-generated podcasts and audio content",
       category: "AI",
       icon: "mic",
-      status: "available"
+      status: "available" as "available"
     },
     {
       id: "chat-interface",
@@ -73,7 +73,7 @@ const ModulesPage = () => {
       description: "Interact with AI models through chat",
       category: "AI",
       icon: "message-circle",
-      status: "active"
+      status: "active" as "active"
     },
     {
       id: "stable-diffusion",
@@ -81,7 +81,7 @@ const ModulesPage = () => {
       description: "Generate images with your local Stable Diffusion model",
       category: "AI",
       icon: "image",
-      status: "available"
+      status: "available" as "available"
     }
   ];
   
