@@ -157,6 +157,7 @@ const DiagnosticAgentPage = () => {
             
             <TabsContent value="status" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
+                {/* Fix: Correctly apply generic type parameter */}
                 <SystemComponentStatus<ModelInfo>
                   title="AI Models"
                   items={models}
@@ -198,6 +199,7 @@ const DiagnosticAgentPage = () => {
                   }}
                 />
                 
+                {/* Fix: Correctly apply generic type parameter */}
                 <SystemComponentStatus<ModuleStatus>
                   title="System Modules"
                   items={modules}
