@@ -32,6 +32,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
           ? "bg-primary text-primary-foreground rounded-tr-none" 
           : "bg-muted rounded-tl-none"
       )}>
+        {message.type === "image" && message.imageUrl && (
+          <div className="mb-2">
+            <img 
+              src={message.imageUrl} 
+              alt={message.content}
+              className="rounded-md max-w-full max-h-[300px] object-contain"
+            />
+          </div>
+        )}
         <div className="whitespace-pre-wrap">{message.content}</div>
         <div className={cn(
           "text-xs mt-1 opacity-70 text-right",

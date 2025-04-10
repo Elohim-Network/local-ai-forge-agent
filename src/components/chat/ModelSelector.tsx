@@ -37,16 +37,16 @@ const models: ModelOption[] = [
     status: "available"
   },
   {
-    value: "gpt-3.5",
-    label: "GPT-3.5 Turbo",
-    description: "OpenAI's balanced model for general purpose use",
-    status: "not-installed"
-  },
-  {
     value: "stable-diffusion",
     label: "Stable Diffusion XL",
     description: "Text-to-image generation model",
     status: "available"
+  },
+  {
+    value: "gpt-3.5",
+    label: "GPT-3.5 Turbo",
+    description: "OpenAI's balanced model for general purpose use",
+    status: "not-installed"
   }
 ];
 
