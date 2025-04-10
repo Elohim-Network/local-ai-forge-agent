@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,20 +23,16 @@ const DiagnosticAgentPage = () => {
   const [scanInterval, setScanInterval] = useState(env.SCAN_INTERVAL_MINUTES);
   const [lastAutoScan, setLastAutoScan] = useState<Date | null>(null);
 
-  // Count issues
   const modelIssues = models.filter(m => m.status !== "active").length;
   const moduleIssues = modules.filter(m => !m.isActive).length;
   const totalIssues = modelIssues + moduleIssues;
 
-  // Status indicators
   const systemStatus = totalIssues === 0 ? "operational" : totalIssues < 3 ? "warning" : "critical";
 
-  // Run system check on page load
   useEffect(() => {
     runDiagnostic();
   }, []);
 
-  // Set up interval-based scanning if enabled
   useEffect(() => {
     let intervalId: number | undefined;
     
@@ -57,12 +52,10 @@ const DiagnosticAgentPage = () => {
     };
   }, [autoScan, scanInterval, totalIssues]);
 
-  // Run diagnostic function
   const runDiagnostic = async () => {
     await checkSystem();
   };
 
-  // Format last checked time
   const formatLastChecked = () => {
     if (!lastChecked) return "Never";
     
@@ -74,7 +67,6 @@ const DiagnosticAgentPage = () => {
     return lastChecked.toLocaleTimeString();
   };
 
-  // Get status color class
   const getStatusColorClass = (status: "operational" | "warning" | "critical") => {
     switch (status) {
       case "operational": return "bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-600/10";
@@ -84,7 +76,6 @@ const DiagnosticAgentPage = () => {
     }
   };
 
-  // Get status icon
   const StatusIcon = ({ status }: { status: "operational" | "warning" | "critical" }) => {
     switch (status) {
       case "operational": return <CheckCircle className="text-green-500" size={24} />;
@@ -157,7 +148,6 @@ const DiagnosticAgentPage = () => {
             
             <TabsContent value="status" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
-                {/* Fix: Correctly apply generic type parameter */}
                 <SystemComponentStatus<ModelInfo>
                   title="AI Models"
                   items={models}
@@ -199,7 +189,6 @@ const DiagnosticAgentPage = () => {
                   }}
                 />
                 
-                {/* Fix: Correctly apply generic type parameter */}
                 <SystemComponentStatus<ModuleStatus>
                   title="System Modules"
                   items={modules}
