@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +13,9 @@ import { DiagnosticReport } from "@/components/diagnostic/DiagnosticReport";
 import { SystemComponentStatus } from "@/components/diagnostic/SystemComponentStatus";
 import { AutoDiagnosticSettings } from "@/components/diagnostic/AutoDiagnosticSettings";
 import { useEnv } from "@/lib/config/useEnv";
+import { TestComponentStatus } from "@/components/diagnostic/TestComponentStatus";
 
+// Error boundary component properly imported from React
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
@@ -225,13 +228,7 @@ const DiagnosticAgentPage = () => {
                 <div className="grid gap-6 md:grid-cols-2">
                   <ErrorBoundary key="models-component">
                     {useTestComponents ? (
-                      <div className="border border-yellow-200 p-3 rounded-md">
-                        <h3 className="text-yellow-700 mb-2">Debug Mode: Test Component</h3>
-                        <div className="bg-white p-4 rounded border">
-                          <p>Models would render here</p>
-                          <p className="text-xs text-muted-foreground mt-2">Items: {models.length}</p>
-                        </div>
-                      </div>
+                      <TestComponentStatus title="AI Models Test" />
                     ) : (
                       <SystemComponentStatus<ModelInfo>
                         title="AI Models"
@@ -278,13 +275,7 @@ const DiagnosticAgentPage = () => {
                   
                   <ErrorBoundary key="modules-component">
                     {useTestComponents ? (
-                      <div className="border border-yellow-200 p-3 rounded-md">
-                        <h3 className="text-yellow-700 mb-2">Debug Mode: Test Component</h3>
-                        <div className="bg-white p-4 rounded border">
-                          <p>Modules would render here</p>
-                          <p className="text-xs text-muted-foreground mt-2">Items: {modules.length}</p>
-                        </div>
-                      </div>
+                      <TestComponentStatus title="System Modules Test" />
                     ) : (
                       <SystemComponentStatus<ModuleStatus>
                         title="System Modules"
