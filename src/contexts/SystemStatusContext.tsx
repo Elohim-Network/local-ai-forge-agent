@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import env from "@/lib/config/environment";
+import { useEnv } from "@/lib/config/useEnv";
 
 // Define types for our system status
 export type ModelStatus = "active" | "downloading" | "available" | "not-installed" | "error";
@@ -32,6 +34,9 @@ export interface SystemStatusContextType {
   downloadModel: (modelId: string) => Promise<void>;
   restartModule: (moduleId: string) => Promise<void>;
   fixAllIssues: () => Promise<void>;
+  addModule: (module: ModuleStatus) => void;
+  updateModuleStatus: (moduleId: string, isActive: boolean, error?: string) => void;
+  removeModule: (moduleId: string) => void;
 }
 
 const SystemStatusContext = createContext<SystemStatusContextType | undefined>(undefined);
@@ -45,6 +50,8 @@ export const useSystemStatus = () => {
 };
 
 export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
+  const { env: envConfig } = useEnv();
+  
   // Sample data - in a real app, this would come from an API or local service
   const [models, setModels] = useState<ModelInfo[]>([
     {
@@ -53,7 +60,7 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
       status: "active",
       size: "4.1GB",
       version: "0.2",
-      port: 8000
+      port: envConfig.DEFAULT_MODEL_PORT
     },
     {
       id: "sdxl",
@@ -90,6 +97,31 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
   const [isChecking, setIsChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
+  // Module registry integration
+  const addModule = (module: ModuleStatus) => {
+    setModules(prev => {
+      // Don't add if already exists
+      if (prev.some(m => m.id === module.id)) {
+        return prev;
+      }
+      return [...prev, module];
+    });
+  };
+
+  const updateModuleStatus = (moduleId: string, isActive: boolean, error?: string) => {
+    setModules(prev => 
+      prev.map(module => 
+        module.id === moduleId ? 
+          { ...module, isActive, error } : 
+          module
+      )
+    );
+  };
+
+  const removeModule = (moduleId: string) => {
+    setModules(prev => prev.filter(module => module.id !== moduleId));
+  };
+
   // Simulate checking system status
   const checkSystem = async () => {
     setIsChecking(true);
@@ -117,7 +149,7 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     setModels(prevModels => 
       prevModels.map(model => 
         model.id === modelId ? 
-          { ...model, status: "active" as ModelStatus } : 
+          { ...model, status: "active" as ModelStatus, port: envConfig.DEFAULT_MODEL_PORT } : 
           model
       )
     );
@@ -181,6 +213,18 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     checkSystem();
   }, []);
 
+  // React to environment changes
+  useEffect(() => {
+    // For example, update model ports if DEFAULT_MODEL_PORT changes
+    setModels(prevModels => 
+      prevModels.map(model => 
+        model.status === "active" ? 
+          { ...model, port: envConfig.DEFAULT_MODEL_PORT } : 
+          model
+      )
+    );
+  }, [envConfig.DEFAULT_MODEL_PORT]);
+
   const value = {
     models,
     modules,
@@ -190,7 +234,10 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     activateModel,
     downloadModel,
     restartModule,
-    fixAllIssues
+    fixAllIssues,
+    addModule,
+    updateModuleStatus,
+    removeModule
   };
 
   return (

@@ -5,20 +5,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCw, Zap, AlertTriangle, Info, CheckCircle, XCircle, Clock, ArrowRight } from "lucide-react";
+import { RefreshCw, Zap, AlertTriangle, Info, CheckCircle, XCircle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useSystemStatus, ModelStatus, ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { useToast } from "@/hooks/use-toast";
 import { DiagnosticReport } from "@/components/diagnostic/DiagnosticReport";
 import { SystemComponentStatus } from "@/components/diagnostic/SystemComponentStatus";
 import { AutoDiagnosticSettings } from "@/components/diagnostic/AutoDiagnosticSettings";
+import { useEnv } from "@/lib/config/useEnv";
 
 const DiagnosticAgentPage = () => {
   const { models, modules, isChecking, lastChecked, checkSystem, activateModel, downloadModel, restartModule, fixAllIssues } = useSystemStatus();
   const { toast } = useToast();
+  const { env } = useEnv();
+  
   const [activeTab, setActiveTab] = useState("status");
   const [autoScan, setAutoScan] = useState(false);
-  const [scanInterval, setScanInterval] = useState(60); // Minutes
+  const [scanInterval, setScanInterval] = useState(env.SCAN_INTERVAL_MINUTES);
   const [lastAutoScan, setLastAutoScan] = useState<Date | null>(null);
 
   // Count issues
@@ -95,8 +98,12 @@ const DiagnosticAgentPage = () => {
     <div className="container mx-auto max-w-7xl py-6 space-y-8">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Diagnostic Agent</h1>
-          <p className="text-muted-foreground">Monitor and troubleshoot your LocalForge environment</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {env.REBRAND_MODE ? `${env.SYSTEM_NAME} Diagnostics` : 'Diagnostic Agent'}
+          </h1>
+          <p className="text-muted-foreground">
+            Monitor and troubleshoot your {env.REBRAND_MODE ? env.SYSTEM_NAME : 'LocalForge'} environment
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge className={getStatusColorClass(systemStatus)}>

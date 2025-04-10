@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SystemStatusProvider } from "./contexts/SystemStatusContext";
+import { ModuleLoader } from "./modules";
 import Dashboard from "./pages/Dashboard";
 import ModelsPage from "./pages/ModelsPage";
 import WorkspacePage from "./pages/WorkspacePage";
@@ -23,6 +24,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <SystemStatusProvider>
+        {/* Load all system modules */}
+        <ModuleLoader />
         <Toaster />
         <Sonner />
         <BrowserRouter>
