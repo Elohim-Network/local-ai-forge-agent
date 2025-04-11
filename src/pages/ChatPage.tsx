@@ -67,7 +67,8 @@ const DEFAULT_SETTINGS: ChatSettingsType = {
     volume: 0.8,
     continuousListening: false,
     silenceTimeout: 1500,
-    minConfidence: 0.5
+    minConfidence: 0.5,
+    autoSendThreshold: 15 // Default character threshold for auto-sending
   },
 };
 
@@ -123,22 +124,23 @@ const ChatPage = () => {
     onSpeechResult: (text) => {
       if (text.trim()) {
         setInput(text);
-        if (settings.voice.autoListen && text.length > 10) {
-          setTimeout(() => {
-            sendMessage(text);
-          }, 500);
+        // Modified logic to always send automatically after recognizing speech
+        if (settings.voice.autoListen || settings.voice.continuousListening || 
+            (settings.voice.autoSendThreshold && text.length >= settings.voice.autoSendThreshold)) {
+          sendMessage(text);
         }
       }
     },
     volume: settings.voice.volume,
     continuousListening: settings.voice.continuousListening,
     onInterimResult: (text) => {
-      if (settings.voice.continuousListening && text.trim()) {
+      if ((settings.voice.continuousListening || settings.voice.autoListen) && text.trim()) {
         setInput(text);
       }
     },
     silenceTimeout: settings.voice.silenceTimeout,
-    minConfidence: settings.voice.minConfidence
+    minConfidence: settings.voice.minConfidence,
+    autoSendThreshold: settings.voice.autoSendThreshold
   });
   
   useEffect(() => {
@@ -155,7 +157,10 @@ const ChatPage = () => {
     if (settings.voice.enabled && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === "assistant" && lastMessage.type === "text") {
-        speak(lastMessage.content);
+        // Delay the speech slightly for a more natural interaction
+        setTimeout(() => {
+          speak(lastMessage.content);
+        }, 300);
       }
     }
   }, [messages, settings.voice.enabled]);
@@ -428,7 +433,9 @@ const ChatPage = () => {
         title: "Voice chat enabled",
         description: settings.voice.continuousListening 
           ? "Hands-free voice communication is active." 
-          : "The AI will now read responses out loud."
+          : settings.voice.autoSendThreshold > 0
+            ? "Auto-reply is active: speech will be sent after " + settings.voice.autoSendThreshold + " characters"
+            : "The AI will now read responses out loud."
       });
     } else {
       stopSpeaking();
@@ -828,6 +835,10 @@ const ChatPage = () => {
                           stopRecording();
                         } else {
                           startRecording();
+                          toast({
+                            title: "Voice recording started",
+                            description: "Speak clearly and I'll automatically reply when you finish.",
+                          });
                         }
                       }}
                       disabled={isProcessing}

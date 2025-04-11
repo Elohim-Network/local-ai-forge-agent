@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { toast } from "@/hooks/use-toast";
 
@@ -55,6 +54,7 @@ interface UseVoiceProps {
   onInterimResult?: (text: string) => void;
   silenceTimeout?: number;
   minConfidence?: number;
+  autoSendThreshold?: number;
 }
 
 export function useVoice({ 
@@ -65,7 +65,8 @@ export function useVoice({
   continuousListening = false,
   onInterimResult,
   silenceTimeout = 1500,
-  minConfidence = 0.5
+  minConfidence = 0.5,
+  autoSendThreshold = 15
 }: UseVoiceProps) {
   const [isListening, setIsListening] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -75,6 +76,7 @@ export function useVoice({
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
   const lastSpeechRef = useRef<number>(Date.now());
+  const pendingTranscriptRef = useRef<string>('');
 
   // Initialize speech recognition
   useEffect(() => {
@@ -108,10 +110,51 @@ export function useVoice({
             } else {
               // For interim results
               interimTranscript = result[0].transcript;
+              
+              // Keep track of the interim transcript to check for auto-send threshold
+              pendingTranscriptRef.current = interimTranscript;
+              
               if (onInterimResult && interimTranscript.trim()) {
                 onInterimResult(interimTranscript);
               }
               setTranscript(interimTranscript);
+              
+              // Auto-send if transcript exceeds threshold and contains a natural pause
+              if (autoSendThreshold > 0 && 
+                  interimTranscript.length > autoSendThreshold &&
+                  (interimTranscript.endsWith('.') || 
+                   interimTranscript.endsWith('?') || 
+                   interimTranscript.endsWith('!') ||
+                   /\S+\s+$/.test(interimTranscript))) { // Ends with space after a word
+                
+                // Clear existing silence timer if any
+                if (silenceTimerRef.current) {
+                  window.clearTimeout(silenceTimerRef.current);
+                }
+                
+                // Set a small delay before sending to allow for potential continuation
+                silenceTimerRef.current = window.setTimeout(() => {
+                  if (pendingTranscriptRef.current.trim()) {
+                    onSpeechResult(pendingTranscriptRef.current);
+                    pendingTranscriptRef.current = '';
+                    setTranscript('');
+                    
+                    // Restart recognition to clear buffer
+                    if (recognitionRef.current) {
+                      try {
+                        recognitionRef.current.stop();
+                        setTimeout(() => {
+                          if (recognitionRef.current && isListening) {
+                            recognitionRef.current.start();
+                          }
+                        }, 100);
+                      } catch (error) {
+                        console.error("Error restarting recognition:", error);
+                      }
+                    }
+                  }
+                }, 500); // Small delay to check if speech continues
+              }
             }
           }
         }
@@ -125,10 +168,11 @@ export function useVoice({
           
           // Set a new timer to detect when speaking stops
           silenceTimerRef.current = window.setTimeout(() => {
-            if (Date.now() - lastSpeechRef.current >= silenceTimeout && interimTranscript.trim()) {
+            if (Date.now() - lastSpeechRef.current >= silenceTimeout && pendingTranscriptRef.current.trim()) {
               // If there's been silence for the timeout period and we have interim results,
               // treat the interim transcript as final
-              onSpeechResult(interimTranscript);
+              onSpeechResult(pendingTranscriptRef.current);
+              pendingTranscriptRef.current = '';
               setTranscript('');
               
               // Restart recognition to clear buffer
@@ -202,7 +246,7 @@ export function useVoice({
         window.clearTimeout(silenceTimerRef.current);
       }
     };
-  }, [enabled, minConfidence, silenceTimeout]);
+  }, [enabled, minConfidence, silenceTimeout, autoSendThreshold]);
   
   // Auto-listen mode
   useEffect(() => {
@@ -244,6 +288,7 @@ export function useVoice({
   const startRecording = () => {
     if (!enabled || !recognitionRef.current) return;
     
+    pendingTranscriptRef.current = '';
     setTranscript('');
     try {
       recognitionRef.current.start();
@@ -273,6 +318,19 @@ export function useVoice({
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.volume = volume;
+    
+    // Try to use a more natural voice if available
+    const voices = synthRef.current.getVoices();
+    const preferredVoices = voices.filter(voice => 
+      voice.name.includes('Google') || // Google voices tend to be better
+      voice.name.includes('Natural') || 
+      voice.name.includes('Premium') ||
+      voice.name.includes('Enhanced')
+    );
+    
+    if (preferredVoices.length > 0) {
+      utterance.voice = preferredVoices[0];
+    }
     
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
