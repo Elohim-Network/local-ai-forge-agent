@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Message } from '@/pages/ChatPage';
 
@@ -23,14 +22,12 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     messages: Message[];
   }[]>([]);
   
-  // Load sessions from localStorage on init
   useEffect(() => {
     if (!enabled || !saveHistory) return;
     
     try {
       const savedSessions = localStorage.getItem('chat-sessions');
       if (savedSessions) {
-        // Parse dates that were stored as strings back to Date objects
         const parsedSessions = JSON.parse(savedSessions, (key, value) => {
           if (key === 'timestamp') return new Date(value);
           if (key === 'messages') {
@@ -48,7 +45,6 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     }
   }, [enabled, saveHistory]);
   
-  // Create a new session
   const createSession = (messages: Message[] = []) => {
     if (!enabled) return '';
     
@@ -77,14 +73,12 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     return id;
   };
   
-  // Update an existing session
   const updateSession = (sessionId: string, messages: Message[]) => {
     if (!enabled || !sessionId) return;
     
     setSessions(prev => {
       const updated = prev.map(session => {
         if (session.id === sessionId) {
-          // If this is update #1, set a title based on first user message
           let title = session.title;
           if (session.messages.length === 0 && messages.length > 0) {
             const firstUserMsg = messages.find(m => m.role === 'user');
@@ -109,12 +103,10 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     });
   };
   
-  // Get a session by ID
   const getSession = (sessionId: string) => {
     return sessions.find(session => session.id === sessionId);
   };
   
-  // Delete a session
   const deleteSession = (sessionId: string) => {
     setSessions(prev => {
       const updated = prev.filter(session => session.id !== sessionId);
@@ -129,7 +121,6 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     }
   };
   
-  // Clear all sessions
   const clearAllSessions = () => {
     setSessions([]);
     setCurrentSessionId('');
@@ -138,7 +129,6 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     }
   };
   
-  // Search across all sessions
   const searchSessions = (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -152,7 +142,6 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
       messages: Message[];
     }[] = [];
     
-    // Search in all sessions
     sessions.forEach(session => {
       const matchingMessages = session.messages.filter(msg => 
         msg.content.toLowerCase().includes(query.toLowerCase())
@@ -170,7 +159,6 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     return results;
   };
   
-  // Helper to save to localStorage
   const saveSessionsToStorage = (sessionsToSave: ChatSession[]) => {
     if (!saveHistory) return;
     
@@ -191,6 +179,7 @@ export function useChatMemory({ enabled = true, saveHistory = true }: UseChatMem
     deleteSession,
     clearAllSessions,
     searchQuery,
+    setSearchQuery,
     searchResults,
     searchSessions
   };

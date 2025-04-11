@@ -42,8 +42,8 @@ import {
 import { Upload, Info, Mic, Headphones, MessageSquare } from "lucide-react";
 
 interface ChatSettingsProps {
-  onSaveSettings: (settings: ChatSettings) => void;
   settings: ChatSettings;
+  onSaveSettings: (settings: ChatSettings) => void; // Changed from onSave to onSaveSettings
 }
 
 export interface ChatSettings {
@@ -222,7 +222,7 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
   };
 
   const handleSave = () => {
-    onSaveSettings(localSettings);
+    onSaveSettings(localSettings); // Changed from onSaveSettings to match the prop name
     toast({
       title: "Settings saved",
       description: "Your chat settings have been updated.",

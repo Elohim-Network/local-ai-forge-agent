@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSelector } from "@/components/chat/ModelSelector";
-import { ChatSettings, ChatSettings as ChatSettingsType } from "@/components/chat/ChatSettings";
+import { ChatSettings } from "@/components/chat/ChatSettings";
 import { toast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useChatMemory } from "@/hooks/useChatMemory";
@@ -89,7 +89,7 @@ export interface Reminder {
   added: Date;
 }
 
-const DEFAULT_SETTINGS: ChatSettingsType = {
+const DEFAULT_SETTINGS: ChatSettings = {
   memory: {
     enabled: true,
     saveHistory: true,
@@ -125,7 +125,7 @@ const ChatPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedModel, setSelectedModel] = useState("mistral-7b");
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [settings, setSettings] = useState<ChatSettingsType>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -150,7 +150,8 @@ const ChatPage = () => {
     setCurrentSessionId,
     createSession, 
     updateSession, 
-    searchQuery, 
+    searchQuery,
+    setSearchQuery,
     searchResults, 
     searchSessions,
     deleteSession,
@@ -843,7 +844,7 @@ const ChatPage = () => {
     }
   };
   
-  const handleSaveSettings = (newSettings: ChatSettingsType) => {
+  const handleSaveSettings = (newSettings: ChatSettings) => {
     setSettings(newSettings);
     
     console.log("Settings updated:", newSettings);
@@ -1140,7 +1141,7 @@ const ChatPage = () => {
                 </DialogHeader>
                 <ChatSettings 
                   settings={settings} 
-                  onSave={handleSaveSettings}
+                  onSaveSettings={handleSaveSettings}
                 />
               </DialogContent>
             </Dialog>
