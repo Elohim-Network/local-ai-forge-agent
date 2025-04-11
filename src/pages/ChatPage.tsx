@@ -226,7 +226,6 @@ const ChatPage = () => {
     }
   }, [messages, settings.memory.enabled]);
 
-  // Handle popout window
   useEffect(() => {
     // Clean up popout window on unmount
     return () => {
@@ -445,7 +444,6 @@ const ChatPage = () => {
     }
   };
 
-  // Handle messages from popout window
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'sendMessage') {
@@ -470,7 +468,6 @@ const ChatPage = () => {
     return () => window.removeEventListener('message', handleMessage);
   }, [messages, popoutWindow]);
 
-  // Update popout window with new messages
   useEffect(() => {
     if (popoutWindow && !popoutWindow.closed && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
@@ -644,7 +641,6 @@ const ChatPage = () => {
     setReminderOpen(false);
   };
   
-  // Load reminders from localStorage
   useEffect(() => {
     const savedReminders = localStorage.getItem('chat-reminders');
     if (savedReminders) {
@@ -995,3 +991,360 @@ const ChatPage = () => {
       e.preventDefault();
       searchSessions(searchQuery);
     };
+    
+    return (
+      <div className="space-y-4 p-1">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <Input 
+            placeholder="Search your conversations..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button type="submit" variant="outline" size="icon">
+            <Search className="h-4 w-4" />
+          </Button>
+        </form>
+        
+        {searchResults.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Search className="mx-auto h-8 w-8 mb-2 opacity-50" />
+            <p>No results found</p>
+            <p className="text-sm">Try a different search term</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {searchResults.map((result, idx) => {
+              const session = sessions.find(s => s.id === result.sessionId);
+              if (!session) return null;
+              
+              return (
+                <div key={`${result.sessionId}-${idx}`} className="border border-border rounded-md p-3">
+                  <div 
+                    className="font-medium mb-2 cursor-pointer hover:text-primary"
+                    onClick={() => {
+                      loadSession(result.sessionId);
+                      setSearchOpen(false);
+                    }}
+                  >
+                    {session.title} <span className="text-xs text-muted-foreground">({session.timestamp.toLocaleDateString()})</span>
+                  </div>
+                  <div className="space-y-2">
+                    {result.messages.map((msg, msgIdx) => (
+                      <div key={`${msg.id}-${msgIdx}`} className="text-sm bg-muted p-2 rounded">
+                        <div className="font-medium text-xs">{msg.role === 'user' ? 'You' : 'Elohim'}</div>
+                        <div>{msg.content.slice(0, 100)}{msg.content.length > 100 ? '...' : ''}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  return (
+    <div ref={chatContainerRef} className={`
+      h-full flex flex-col overflow-hidden 
+      bg-gradient-to-br from-background to-background/90 
+      shadow-[0_0_50px_rgba(0,0,0,0.25)] relative
+      transition-all duration-300
+      ${isMinimized ? 'rounded-xl border border-primary/20' : ''}
+    `}>
+      {isMinimized && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 z-10">
+          <Button 
+            variant="ghost" 
+            className="w-full h-full flex flex-col items-center justify-center"
+            onClick={toggleMinimized}
+          >
+            <Bot className="h-6 w-6 text-primary/80 mb-1" />
+            <span className="text-xs">Elohim</span>
+          </Button>
+        </div>
+      )}
+      
+      <div className={`flex-1 flex flex-col overflow-hidden ${isMinimized ? 'opacity-0' : ''}`}>
+        <div className="px-4 py-3 border-b border-primary/10 bg-gradient-to-r from-primary/5 to-background flex items-center justify-between">
+          <div className="flex items-center">
+            <Bot className="text-primary mr-2 h-5 w-5" />
+            <h1 className="font-semibold">Elohim</h1>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`rounded-full h-8 w-8 ${settings.voice.enabled ? 'bg-primary/20 text-primary' : ''}`}
+              onClick={toggleVoiceChat}
+              title={settings.voice.enabled ? 'Disable voice' : 'Enable voice'}
+            >
+              {settings.voice.enabled
+                ? isSpeaking 
+                  ? <Volume2 className="h-4 w-4 animate-pulse" />
+                  : <Volume2 className="h-4 w-4" />
+                : <VolumeX className="h-4 w-4" />
+              }
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full h-8 w-8"
+              onClick={openPopoutWindow}
+              disabled={isPopout}
+              title="Pop out chat"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`rounded-full h-8 w-8 ${alwaysOnTop ? 'bg-primary/20 text-primary' : ''}`}
+              onClick={toggleAlwaysOnTop}
+              title={alwaysOnTop ? 'Disable always on top' : 'Enable always on top'}
+            >
+              {alwaysOnTop ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full h-8 w-8"
+              onClick={toggleMinimized}
+              title="Minimize chat"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-8 w-8"
+                  title="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Chat Settings</DialogTitle>
+                  <DialogDescription>
+                    Configure how Elohim works and behaves
+                  </DialogDescription>
+                </DialogHeader>
+                <ChatSettings 
+                  settings={settings} 
+                  onSave={handleSaveSettings}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+        
+        <div className="p-2 border-b border-primary/10 bg-gradient-to-r from-background/50 to-background">
+          <ModelSelector 
+            selectedModel={selectedModel} 
+            onSelectModel={setSelectedModel}
+          />
+        </div>
+        
+        <div className="flex-1 overflow-hidden p-4 bg-gradient-to-br from-background/80 to-background/70 backdrop-blur-sm relative">
+          <ScrollArea className="h-full pr-4">
+            <div className="space-y-5 pb-4">
+              {messages.map(message => (
+                <ChatMessage key={message.id} message={message} />
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+          
+          {isProcessing && (
+            <div className="absolute bottom-0 left-0 right-0 p-2 text-center bg-gradient-to-b from-transparent to-background">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
+                <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full"></div>
+                {isGeneratingImage 
+                  ? "Generating image..." 
+                  : "Processing..."}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-4 border-t border-primary/10 bg-gradient-to-b from-background/50 to-background/90 backdrop-blur-md">
+          <div className="relative">
+            <Input
+              placeholder={
+                settings.voice.enabled && settings.voice.autoListen
+                ? "Speak or type your message..."
+                : "Type your message..."
+              }
+              className="pr-[120px] bg-card/60 shadow-inner border-primary/20 backdrop-blur-sm"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isProcessing}
+            />
+            
+            <div className="absolute right-1 top-1 flex items-center space-x-1">
+              {settings.voice.enabled && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isRecording || isListening ? "destructive" : "secondary"}
+                  className={`h-7 w-7 bg-opacity-80 ${isRecording || isListening ? 'animate-pulse' : ''}`}
+                  onClick={isRecording || isListening ? stopRecording : startRecording}
+                  disabled={isProcessing}
+                  title={isRecording || isListening ? "Stop recording" : "Start recording"}
+                >
+                  {isRecording || isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                </Button>
+              )}
+              
+              <Button
+                type="button"
+                size="icon"
+                variant="default"
+                className="h-7 w-7"
+                onClick={() => sendMessage()}
+                disabled={isProcessing || !input.trim()}
+              >
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+              
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={clearChat}
+                disabled={isProcessing || messages.length <= 1}
+                title="Clear chat"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex gap-1">
+              <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => setHistoryOpen(true)}>
+                    <BookOpen className="h-3.5 w-3.5" />
+                    <span>History</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[350px] sm:w-[450px]">
+                  <SheetHeader>
+                    <SheetTitle>Chat History</SheetTitle>
+                    <SheetDescription>
+                      View and load your previous conversations
+                    </SheetDescription>
+                  </SheetHeader>
+                  {renderHistoryList()}
+                </SheetContent>
+              </Sheet>
+              
+              <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => setSearchOpen(true)}>
+                    <Search className="h-3.5 w-3.5" />
+                    <span>Search</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[350px] sm:w-[450px]">
+                  <SheetHeader>
+                    <SheetTitle>Search Conversations</SheetTitle>
+                    <SheetDescription>
+                      Find specific messages across all chats
+                    </SheetDescription>
+                  </SheetHeader>
+                  {renderSearchResults()}
+                </SheetContent>
+              </Sheet>
+              
+              <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
+                    <CalendarPlus className="h-3.5 w-3.5" />
+                    <span>Reminders</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Add Reminder</DialogTitle>
+                    <DialogDescription>
+                      Create a new reminder for Elohim to track
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium" htmlFor="reminder-title">Title</label>
+                      <Input 
+                        id="reminder-title"
+                        value={newReminder.title} 
+                        onChange={(e) => setNewReminder({...newReminder, title: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium" htmlFor="reminder-description">Description (optional)</label>
+                      <Input 
+                        id="reminder-description"
+                        value={newReminder.description} 
+                        onChange={(e) => setNewReminder({...newReminder, description: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium" htmlFor="reminder-date">Date</label>
+                      <Input 
+                        id="reminder-date"
+                        type="date" 
+                        value={newReminder.date} 
+                        onChange={(e) => setNewReminder({...newReminder, date: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setReminderOpen(false)}>Cancel</Button>
+                    <Button onClick={addReminder}>Add Reminder</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+            
+            <div className="flex gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
+                    <ArrowUpFromLine className="h-3.5 w-3.5" />
+                    <span>Export</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-2">
+                  <div className="space-y-1">
+                    <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={exportConversation}>
+                      <Download className="h-3.5 w-3.5 mr-2" />
+                      Save as text file
+                    </Button>
+                    <Button variant="ghost" size="sm" className="w-full justify-start text-xs" onClick={emailConversation}>
+                      <Mail className="h-3.5 w-3.5 mr-2" />
+                      Email conversation
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChatPage;
