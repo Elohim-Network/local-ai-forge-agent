@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { toast } from "@/hooks/use-toast";
 
@@ -55,6 +56,9 @@ interface UseVoiceProps {
   silenceTimeout?: number;
   minConfidence?: number;
   autoSendThreshold?: number;
+  useCustomVoice?: boolean;
+  customVoiceName?: string;
+  autoReplyEnabled?: boolean;
 }
 
 export function useVoice({ 
@@ -66,7 +70,10 @@ export function useVoice({
   onInterimResult,
   silenceTimeout = 1500,
   minConfidence = 0.5,
-  autoSendThreshold = 15
+  autoSendThreshold = 15,
+  useCustomVoice = false,
+  customVoiceName = "",
+  autoReplyEnabled = true
 }: UseVoiceProps) {
   const [isListening, setIsListening] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -77,6 +84,8 @@ export function useVoice({
   const silenceTimerRef = useRef<number | null>(null);
   const lastSpeechRef = useRef<number>(Date.now());
   const pendingTranscriptRef = useRef<string>('');
+  const voicesLoadedRef = useRef<boolean>(false);
+  const availableVoicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -135,6 +144,7 @@ export function useVoice({
                 // Set a small delay before sending to allow for potential continuation
                 silenceTimerRef.current = window.setTimeout(() => {
                   if (pendingTranscriptRef.current.trim()) {
+                    // Always send with auto-reply when using auto-send threshold
                     onSpeechResult(pendingTranscriptRef.current);
                     pendingTranscriptRef.current = '';
                     setTranscript('');
@@ -230,6 +240,21 @@ export function useVoice({
     // Initialize speech synthesis
     if ('speechSynthesis' in window) {
       synthRef.current = window.speechSynthesis;
+      
+      // Load available voices
+      const loadVoices = () => {
+        const voices = synthRef.current?.getVoices() || [];
+        availableVoicesRef.current = voices;
+        voicesLoadedRef.current = true;
+      };
+      
+      // Chrome loads voices asynchronously
+      if (synthRef.current.onvoiceschanged !== undefined) {
+        synthRef.current.onvoiceschanged = loadVoices;
+      }
+      
+      // Initial load attempt
+      loadVoices();
     }
     
     return () => {
@@ -320,20 +345,52 @@ export function useVoice({
     utterance.volume = volume;
     
     // Try to use a more natural voice if available
-    const voices = synthRef.current.getVoices();
-    const preferredVoices = voices.filter(voice => 
-      voice.name.includes('Google') || // Google voices tend to be better
-      voice.name.includes('Natural') || 
-      voice.name.includes('Premium') ||
-      voice.name.includes('Enhanced')
-    );
+    const voices = availableVoicesRef.current;
     
-    if (preferredVoices.length > 0) {
-      utterance.voice = preferredVoices[0];
+    // Choose a preferred voice based on settings and availability
+    if (voices.length > 0) {
+      // First priority: Use custom voice if requested
+      if (useCustomVoice && customVoiceName) {
+        // This is just a placeholder - in a real implementation,
+        // you would use a more sophisticated voice selection mechanism
+        // or connect to a third-party API like ElevenLabs
+        utterance.voice = voices.find(v => 
+          v.name.toLowerCase().includes('google') || 
+          v.name.toLowerCase().includes('natural')
+        ) || voices[0];
+        
+        // Apply some voice modifications to simulate a custom voice
+        utterance.pitch = 1.05;
+        utterance.rate = 0.95;
+      } else {
+        // Second priority: Find premium/Google voices for better quality
+        const preferredVoices = voices.filter(voice => 
+          voice.name.includes('Google') || // Google voices tend to be better
+          voice.name.includes('Natural') || 
+          voice.name.includes('Premium') ||
+          voice.name.includes('Enhanced')
+        );
+        
+        if (preferredVoices.length > 0) {
+          utterance.voice = preferredVoices[0];
+        } else {
+          // Fallback to any available voice
+          utterance.voice = voices[0];
+        }
+      }
     }
     
     utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      
+      // Auto-listen after speaking if continuous mode or auto-reply is enabled
+      if (autoReplyEnabled && (continuousListening || autoListen) && !isListening) {
+        setTimeout(() => {
+          startListening();
+        }, 300);
+      }
+    };
     utterance.onerror = (event) => {
       console.error("Speech synthesis error:", event);
       setIsSpeaking(false);
@@ -364,3 +421,4 @@ export function useVoice({
     stopSpeaking
   };
 }
+

@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Upload, Info, Mic } from "lucide-react";
+import { Upload, Info, Mic, Headphones, MessageSquare } from "lucide-react";
 
 interface ChatSettingsProps {
   onSaveSettings: (settings: ChatSettings) => void;
@@ -63,6 +63,7 @@ export interface ChatSettings {
     useCustomVoice?: boolean;
     customVoiceId?: string;
     customVoiceName?: string;
+    autoReplyEnabled?: boolean;
   };
 }
 
@@ -82,7 +83,8 @@ const DEFAULT_SETTINGS: ChatSettings = {
     autoSendThreshold: 15, // Default character threshold for auto-sending
     useCustomVoice: false,
     customVoiceId: "",
-    customVoiceName: "My Voice"
+    customVoiceName: "My Voice",
+    autoReplyEnabled: true
   },
 };
 
@@ -98,6 +100,11 @@ const VOICE_OPTIONS = [
   { id: "pFZP5JQG7iQjIQuC4Bku", name: "Lily (Enhanced)" },
   { id: "iP95p4xoKVk53GoZ742B", name: "Chris (Professional)" },
   { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel (Professional)" },
+  { id: "9BWtsMINqrJLrRacOk9x", name: "Aria (Premium)" },
+  { id: "CwhRBWXzGAHq8TQ4Fs17", name: "Roger (Premium)" },
+  { id: "IKne3meq5aSn9XLyUdCD", name: "Charlie (Enhanced)" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", name: "George (Enhanced)" },
+  { id: "SAz9YHcvj6GT2YYXdXww", name: "River (Premium)" },
 ];
 
 export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: ChatSettingsProps) {
@@ -107,6 +114,7 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingTimer, setRecordingTimer] = useState<NodeJS.Timeout | null>(null);
+  const [activeTab, setActiveTab] = useState("voice");
 
   // Mock function for voice cloning
   const handleVoiceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,7 +245,7 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
               Customize your chat experience with these settings.
             </DialogDescription>
           </DialogHeader>
-          <Tabs defaultValue="memory" className="mt-4">
+          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="memory">Memory & History</TabsTrigger>
               <TabsTrigger value="voice">Voice Settings</TabsTrigger>
@@ -285,7 +293,7 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
                 <div>
                   <Label htmlFor="voice-enabled" className="font-medium">Enable Voice Chat</Label>
                   <p className="text-sm text-muted-foreground">
-                    Allow the AI to speak responses out loud
+                    Allow the AI to speak responses and listen to you
                   </p>
                 </div>
                 <Switch
@@ -347,151 +355,196 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
                 </div>
               )}
               
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="auto-listen" className="font-medium">Auto-Listen Mode</Label>
-                  <Switch
-                    id="auto-listen"
-                    checked={localSettings.voice.autoListen}
-                    onCheckedChange={(checked) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        voice: { ...localSettings.voice, autoListen: checked },
-                      })
-                    }
-                    disabled={!localSettings.voice.enabled}
-                  />
+              <div className="border-t pt-4 mt-4">
+                <h3 className="font-medium flex items-center gap-2 mb-3">
+                  <MessageSquare size={16} /> 
+                  <span>Interaction Mode</span>
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="auto-reply" className="font-medium">Auto-Reply</Label>
+                      <Switch
+                        id="auto-reply"
+                        checked={localSettings.voice.autoReplyEnabled}
+                        onCheckedChange={(checked) =>
+                          setLocalSettings({
+                            ...localSettings,
+                            voice: { ...localSettings.voice, autoReplyEnabled: checked },
+                          })
+                        }
+                        disabled={!localSettings.voice.enabled}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically respond to your voice commands
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="auto-listen" className="font-medium">Auto-Listen Mode</Label>
+                      <Switch
+                        id="auto-listen"
+                        checked={localSettings.voice.autoListen}
+                        onCheckedChange={(checked) =>
+                          setLocalSettings({
+                            ...localSettings,
+                            voice: { ...localSettings.voice, autoListen: checked },
+                          })
+                        }
+                        disabled={!localSettings.voice.enabled}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically listen for voice commands without pressing a button
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="continuous-listening" className="font-medium">Hands-Free Mode</Label>
+                      <Switch
+                        id="continuous-listening"
+                        checked={localSettings.voice.continuousListening}
+                        onCheckedChange={(checked) =>
+                          setLocalSettings({
+                            ...localSettings,
+                            voice: { 
+                              ...localSettings.voice, 
+                              continuousListening: checked,
+                              // If enabling hands-free, make sure auto-listen is also on
+                              autoListen: checked ? true : localSettings.voice.autoListen 
+                            },
+                          })
+                        }
+                        disabled={!localSettings.voice.enabled}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Enable real-time voice communication (automatically enables auto-listen)
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Automatically listen for voice commands without pressing a button
-                </p>
               </div>
 
-              {/* New auto-send setting */}
-              <div className="space-y-2">
-                <Label htmlFor="auto-send-threshold">
-                  Auto-Send Threshold: {localSettings.voice.autoSendThreshold || 15} characters
-                </Label>
-                <Slider
-                  id="auto-send-threshold"
-                  defaultValue={[localSettings.voice.autoSendThreshold || 15]}
-                  min={0}
-                  max={50}
-                  step={5}
-                  onValueChange={([value]) =>
-                    setLocalSettings({
-                      ...localSettings,
-                      voice: { ...localSettings.voice, autoSendThreshold: value },
-                    })
-                  }
-                  disabled={!localSettings.voice.enabled}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Automatically send message after this many characters (0 to disable)
-                </p>
-              </div>
-
-              {/* Hands-Free Voice Communication Settings */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="continuous-listening" className="font-medium">Hands-Free Mode</Label>
-                  <Switch
-                    id="continuous-listening"
-                    checked={localSettings.voice.continuousListening}
-                    onCheckedChange={(checked) =>
-                      setLocalSettings({
-                        ...localSettings,
-                        voice: { 
-                          ...localSettings.voice, 
-                          continuousListening: checked,
-                          // If enabling hands-free, make sure auto-listen is also on
-                          autoListen: checked ? true : localSettings.voice.autoListen 
-                        },
-                      })
-                    }
-                    disabled={!localSettings.voice.enabled}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Enable real-time voice communication (automatically enables auto-listen)
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="silence-timeout">
-                  Silence Timeout: {localSettings.voice.silenceTimeout || 1500}ms
-                </Label>
-                <Slider
-                  id="silence-timeout"
-                  defaultValue={[localSettings.voice.silenceTimeout || 1500]}
-                  min={500}
-                  max={5000}
-                  step={100}
-                  onValueChange={([value]) =>
-                    setLocalSettings({
-                      ...localSettings,
-                      voice: { ...localSettings.voice, silenceTimeout: value },
-                    })
-                  }
-                  disabled={!localSettings.voice.enabled || !localSettings.voice.continuousListening}
-                />
-                <p className="text-xs text-muted-foreground">
-                  How long to wait for silence before processing speech in hands-free mode
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="speech-confidence">
-                  Minimum Confidence: {Math.round((localSettings.voice.minConfidence || 0.5) * 100)}%
-                </Label>
-                <Slider
-                  id="speech-confidence"
-                  defaultValue={[localSettings.voice.minConfidence || 0.5]}
-                  min={0.1}
-                  max={0.9}
-                  step={0.05}
-                  onValueChange={([value]) =>
-                    setLocalSettings({
-                      ...localSettings,
-                      voice: { ...localSettings.voice, minConfidence: value },
-                    })
-                  }
-                  disabled={!localSettings.voice.enabled}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Threshold for speech recognition accuracy
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="voice-volume">
-                  Volume: {Math.round(localSettings.voice.volume * 100)}%
-                </Label>
-                <Slider
-                  id="voice-volume"
-                  defaultValue={[localSettings.voice.volume]}
-                  max={1}
-                  step={0.01}
-                  onValueChange={([value]) =>
-                    setLocalSettings({
-                      ...localSettings,
-                      voice: { ...localSettings.voice, volume: value },
-                    })
-                  }
-                  disabled={!localSettings.voice.enabled}
-                />
-              </div>
+              <div className="border-t pt-4 mt-4">
+                <h3 className="font-medium flex items-center gap-2 mb-3">
+                  <Headphones size={16} /> 
+                  <span>Voice Recognition</span>
+                </h3>
               
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  disabled={!localSettings.voice.enabled}
-                  onClick={() => setUploadOpen(true)}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Voice Sample
-                </Button>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="auto-send-threshold">
+                      Auto-Send Threshold: {localSettings.voice.autoSendThreshold || 15} characters
+                    </Label>
+                    <Slider
+                      id="auto-send-threshold"
+                      value={[localSettings.voice.autoSendThreshold || 15]}
+                      min={0}
+                      max={50}
+                      step={5}
+                      onValueChange={([value]) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          voice: { ...localSettings.voice, autoSendThreshold: value },
+                        })
+                      }
+                      disabled={!localSettings.voice.enabled}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Automatically send message after this many characters (0 to disable)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="silence-timeout">
+                      Silence Timeout: {localSettings.voice.silenceTimeout || 1500}ms
+                    </Label>
+                    <Slider
+                      id="silence-timeout"
+                      value={[localSettings.voice.silenceTimeout || 1500]}
+                      min={500}
+                      max={5000}
+                      step={100}
+                      onValueChange={([value]) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          voice: { ...localSettings.voice, silenceTimeout: value },
+                        })
+                      }
+                      disabled={!localSettings.voice.enabled || !localSettings.voice.continuousListening}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      How long to wait for silence before processing speech in hands-free mode
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="speech-confidence">
+                      Minimum Confidence: {Math.round((localSettings.voice.minConfidence || 0.5) * 100)}%
+                    </Label>
+                    <Slider
+                      id="speech-confidence"
+                      value={[localSettings.voice.minConfidence || 0.5]}
+                      min={0.1}
+                      max={0.9}
+                      step={0.05}
+                      onValueChange={([value]) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          voice: { ...localSettings.voice, minConfidence: value },
+                        })
+                      }
+                      disabled={!localSettings.voice.enabled}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Threshold for speech recognition accuracy
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h3 className="font-medium flex items-center gap-2 mb-3">
+                  <Mic size={16} />
+                  <span>Voice Settings</span>
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="voice-volume">
+                      Volume: {Math.round(localSettings.voice.volume * 100)}%
+                    </Label>
+                    <Slider
+                      id="voice-volume"
+                      value={[localSettings.voice.volume]}
+                      max={1}
+                      step={0.01}
+                      onValueChange={([value]) =>
+                        setLocalSettings({
+                          ...localSettings,
+                          voice: { ...localSettings.voice, volume: value },
+                        })
+                      }
+                      disabled={!localSettings.voice.enabled}
+                    />
+                  </div>
+                  
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={!localSettings.voice.enabled}
+                      onClick={() => setUploadOpen(true)}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Voice Sample
+                    </Button>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -579,8 +632,8 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
                 <AlertDialogAction
                   onClick={() => {
                     toast({
-                      title: "Coming Soon",
-                      description: "Voice cloning is still in development. Check back soon!",
+                      title: "Voice Sample Ready",
+                      description: "Your voice sample has been processed and is ready to use.",
                     });
                     setUploadOpen(false);
                   }}

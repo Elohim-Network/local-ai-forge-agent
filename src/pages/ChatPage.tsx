@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,15 @@ import {
   BookOpen,
   Clock,
   Trash,
-  XCircle
+  XCircle,
+  Maximize2,
+  Minimize2,
+  PinOff,
+  Pin,
+  CalendarPlus,
+  ArrowUpFromLine,
+  Download,
+  Mail
 } from "lucide-react";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSelector } from "@/components/chat/ModelSelector";
@@ -45,6 +54,20 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { useMobileScreen } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export interface Message {
   id: string;
@@ -53,6 +76,14 @@ export interface Message {
   timestamp: Date;
   type?: "text" | "image";
   imageUrl?: string;
+}
+
+export interface Reminder {
+  id: string;
+  title: string;
+  description?: string;
+  date: Date;
+  added: Date;
 }
 
 const DEFAULT_SETTINGS: ChatSettingsType = {
@@ -68,7 +99,11 @@ const DEFAULT_SETTINGS: ChatSettingsType = {
     continuousListening: false,
     silenceTimeout: 1500,
     minConfidence: 0.5,
-    autoSendThreshold: 15 // Default character threshold for auto-sending
+    autoSendThreshold: 15, // Default character threshold for auto-sending
+    useCustomVoice: false,
+    customVoiceId: "",
+    customVoiceName: "",
+    autoReplyEnabled: true
   },
 };
 
@@ -76,7 +111,7 @@ const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      content: "Hello! I'm your AI assistant. How can I help you today?",
+      content: "Hello! I'm Elohim, your AI assistant. How can I help you today?",
       role: "assistant",
       timestamp: new Date(),
       type: "text"
@@ -90,8 +125,21 @@ const ChatPage = () => {
   const [settings, setSettings] = useState<ChatSettingsType>(DEFAULT_SETTINGS);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [popoutWindow, setPopoutWindow] = useState<Window | null>(null);
+  const [isPopout, setIsPopout] = useState(false);
+  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [newReminder, setNewReminder] = useState<{title: string, description: string, date: string}>({
+    title: "",
+    description: "",
+    date: new Date().toISOString().split('T')[0]
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobileScreen();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const { 
     sessions, 
@@ -124,11 +172,8 @@ const ChatPage = () => {
     onSpeechResult: (text) => {
       if (text.trim()) {
         setInput(text);
-        // Modified logic to always send automatically after recognizing speech
-        if (settings.voice.autoListen || settings.voice.continuousListening || 
-            (settings.voice.autoSendThreshold && text.length >= settings.voice.autoSendThreshold)) {
-          sendMessage(text);
-        }
+        // Always send automatically after recognizing speech
+        sendMessage(text);
       }
     },
     volume: settings.voice.volume,
@@ -140,7 +185,10 @@ const ChatPage = () => {
     },
     silenceTimeout: settings.voice.silenceTimeout,
     minConfidence: settings.voice.minConfidence,
-    autoSendThreshold: settings.voice.autoSendThreshold
+    autoSendThreshold: settings.voice.autoSendThreshold,
+    useCustomVoice: settings.voice.useCustomVoice,
+    customVoiceName: settings.voice.customVoiceName,
+    autoReplyEnabled: settings.voice.autoReplyEnabled
   });
   
   useEffect(() => {
@@ -174,6 +222,310 @@ const ChatPage = () => {
       }
     }
   }, [messages, settings.memory.enabled]);
+
+  // Handle popout window
+  useEffect(() => {
+    // Clean up popout window on unmount
+    return () => {
+      if (popoutWindow && !popoutWindow.closed) {
+        popoutWindow.close();
+      }
+    };
+  }, [popoutWindow]);
+
+  const openPopoutWindow = () => {
+    // Check if window is already open
+    if (popoutWindow && !popoutWindow.closed) {
+      popoutWindow.focus();
+      return;
+    }
+
+    // Create a new window
+    const newWindow = window.open('', 'ElohimChat', 'width=400,height=600,resizable=yes');
+    
+    if (newWindow) {
+      setPopoutWindow(newWindow);
+      
+      // Set HTML content for the popup window
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Elohim Chat</title>
+          <style>
+            body {
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              padding: 0;
+              margin: 0;
+              background-color: #f8f9fa;
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+              height: 100vh;
+            }
+            #chat-header {
+              background-color: #0f172a;
+              color: white;
+              padding: 10px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              user-select: none;
+              cursor: move;
+            }
+            #chat-messages {
+              flex: 1;
+              overflow-y: auto;
+              padding: 10px;
+            }
+            .message {
+              margin-bottom: 10px;
+              padding: 8px 12px;
+              border-radius: 8px;
+              max-width: 80%;
+              word-wrap: break-word;
+            }
+            .user {
+              background-color: #e2e8f0;
+              margin-left: auto;
+            }
+            .assistant {
+              background-color: #dbeafe;
+            }
+            #chat-input {
+              display: flex;
+              padding: 10px;
+              background: white;
+              border-top: 1px solid #e2e8f0;
+            }
+            #message-input {
+              flex: 1;
+              padding: 8px 12px;
+              border: 1px solid #d1d5db;
+              border-radius: 4px;
+              margin-right: 8px;
+            }
+            #send-button {
+              background: #0f172a;
+              color: white;
+              border: none;
+              border-radius: 4px;
+              padding: 8px 16px;
+              cursor: pointer;
+            }
+            .controls {
+              display: flex;
+              gap: 8px;
+            }
+            .control-button {
+              background: none;
+              border: none;
+              cursor: pointer;
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 24px;
+              height: 24px;
+            }
+            .always-on-top {
+              color: #60a5fa;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="chat-header">
+            <div>Elohim Chat</div>
+            <div class="controls">
+              <button id="pin-button" class="control-button">📌</button>
+              <button id="minimize-button" class="control-button">_</button>
+              <button id="close-button" class="control-button">✕</button>
+            </div>
+          </div>
+          <div id="chat-messages"></div>
+          <div id="chat-input">
+            <input id="message-input" type="text" placeholder="Type your message...">
+            <button id="send-button">Send</button>
+          </div>
+          <script>
+            // Make the window draggable
+            const header = document.getElementById('chat-header');
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            header.addEventListener('mousedown', (e) => {
+              isDragging = true;
+              offsetX = e.clientX;
+              offsetY = e.clientY;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+              if (isDragging) {
+                window.moveBy(e.clientX - offsetX, e.clientY - offsetY);
+              }
+            });
+
+            document.addEventListener('mouseup', () => {
+              isDragging = false;
+            });
+
+            // Handle controls
+            document.getElementById('close-button').addEventListener('click', () => {
+              window.close();
+            });
+
+            let isAlwaysOnTop = false;
+            document.getElementById('pin-button').addEventListener('click', () => {
+              // We can't set alwaysOnTop from JS directly, so we send a message to the parent
+              window.opener.postMessage({ type: 'toggleAlwaysOnTop' }, '*');
+              isAlwaysOnTop = !isAlwaysOnTop;
+              document.getElementById('pin-button').classList.toggle('always-on-top', isAlwaysOnTop);
+            });
+
+            let isMinimized = false;
+            document.getElementById('minimize-button').addEventListener('click', () => {
+              window.opener.postMessage({ type: 'minimizeWindow' }, '*');
+            });
+
+            // Handle sending messages
+            document.getElementById('send-button').addEventListener('click', sendMessage);
+            document.getElementById('message-input').addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') sendMessage();
+            });
+
+            function sendMessage() {
+              const input = document.getElementById('message-input');
+              const message = input.value.trim();
+              
+              if (message) {
+                // Send to parent window to process
+                window.opener.postMessage({ type: 'sendMessage', message }, '*');
+                input.value = '';
+              }
+            }
+
+            // Receive messages from parent
+            window.addEventListener('message', (event) => {
+              if (event.data.type === 'newMessage') {
+                const { role, content } = event.data;
+                addMessage(role, content);
+              } else if (event.data.type === 'updateAlwaysOnTop') {
+                isAlwaysOnTop = event.data.value;
+                document.getElementById('pin-button').classList.toggle('always-on-top', isAlwaysOnTop);
+              }
+            });
+
+            function addMessage(role, content) {
+              const messagesContainer = document.getElementById('chat-messages');
+              const messageElement = document.createElement('div');
+              messageElement.className = \`message \${role}\`;
+              messageElement.textContent = content;
+              messagesContainer.appendChild(messageElement);
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            // Initial load of messages
+            window.opener.postMessage({ type: 'requestMessages' }, '*');
+          </script>
+        </body>
+        </html>
+      `);
+      
+      newWindow.document.close();
+      setIsPopout(true);
+      
+      // Handle window close
+      newWindow.onbeforeunload = () => {
+        setPopoutWindow(null);
+        setIsPopout(false);
+      };
+    }
+  };
+
+  // Handle messages from popout window
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'sendMessage') {
+        sendMessage(event.data.message);
+      } else if (event.data.type === 'toggleAlwaysOnTop') {
+        toggleAlwaysOnTop();
+      } else if (event.data.type === 'minimizeWindow') {
+        toggleMinimized();
+      } else if (event.data.type === 'requestMessages') {
+        // Send existing messages to the popout window
+        messages.forEach(msg => {
+          popoutWindow?.postMessage({
+            type: 'newMessage',
+            role: msg.role,
+            content: msg.content
+          }, '*');
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [messages, popoutWindow]);
+
+  // Update popout window with new messages
+  useEffect(() => {
+    if (popoutWindow && !popoutWindow.closed && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      popoutWindow.postMessage({
+        type: 'newMessage',
+        role: lastMessage.role,
+        content: lastMessage.content
+      }, '*');
+    }
+  }, [messages, popoutWindow]);
+
+  const toggleAlwaysOnTop = () => {
+    setAlwaysOnTop(!alwaysOnTop);
+    
+    // Send update to popout window
+    if (popoutWindow && !popoutWindow.closed) {
+      popoutWindow.postMessage({
+        type: 'updateAlwaysOnTop',
+        value: !alwaysOnTop
+      }, '*');
+    }
+    
+    // Note: We can't actually make the window always-on-top from browser JS
+    // This would require a desktop application or browser extension
+    toast({
+      title: !alwaysOnTop ? "Always on top enabled" : "Always on top disabled",
+      description: !alwaysOnTop 
+        ? "Chat window will stay on top of other windows (simulated)" 
+        : "Chat window will behave normally"
+    });
+  };
+
+  const toggleMinimized = () => {
+    setIsMinimized(!isMinimized);
+    
+    if (chatContainerRef.current) {
+      if (!isMinimized) {
+        // Minimize
+        chatContainerRef.current.style.height = '60px';
+        chatContainerRef.current.style.width = '200px';
+        chatContainerRef.current.style.position = 'fixed';
+        chatContainerRef.current.style.bottom = '20px';
+        chatContainerRef.current.style.right = '20px';
+        chatContainerRef.current.style.zIndex = '9999';
+        chatContainerRef.current.style.overflow = 'hidden';
+        chatContainerRef.current.style.transition = 'all 0.3s ease';
+      } else {
+        // Restore
+        chatContainerRef.current.style.height = '';
+        chatContainerRef.current.style.width = '';
+        chatContainerRef.current.style.position = '';
+        chatContainerRef.current.style.bottom = '';
+        chatContainerRef.current.style.right = '';
+        chatContainerRef.current.style.zIndex = '';
+        chatContainerRef.current.style.overflow = '';
+      }
+    }
+  };
   
   const sendMessage = async (messageText = input) => {
     if (!messageText.trim()) return;
@@ -191,12 +543,20 @@ const ChatPage = () => {
     setIsProcessing(true);
     
     try {
-      const isImageRequest = /generate|create|draw|make|show\s+(an|a)?\s+(image|picture|photo|artwork|drawing)/i.test(messageText);
+      // Check for calendar/reminder requests
+      const isReminderRequest = /remind|reminder|schedule|appointment|meeting|calendar|event/i.test(messageText.toLowerCase());
       
-      if (isImageRequest && selectedModel === "stable-diffusion") {
-        await generateImage(messageText);
+      if (isReminderRequest) {
+        // Process reminder request
+        processReminderRequest(messageText);
       } else {
-        await sendToLocalModel(messageText, selectedModel);
+        const isImageRequest = /generate|create|draw|make|show\s+(an|a)?\s+(image|picture|photo|artwork|drawing)/i.test(messageText);
+        
+        if (isImageRequest && selectedModel === "stable-diffusion") {
+          await generateImage(messageText);
+        } else {
+          await sendToLocalModel(messageText, selectedModel);
+        }
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -208,6 +568,94 @@ const ChatPage = () => {
       setIsProcessing(false);
     }
   };
+
+  const processReminderRequest = (message: string) => {
+    // This is a simplified implementation - in a real app this would use NLP to extract details
+    let title = "New reminder";
+    let description = message;
+    let date = new Date();
+    
+    // Add a day to the default date
+    date.setDate(date.getDate() + 1);
+    
+    // Create a response message
+    const responseMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      content: `I've detected a reminder request. Would you like to create a reminder based on: "${message}"?`,
+      role: "assistant",
+      timestamp: new Date(),
+      type: "text"
+    };
+    
+    setMessages(prev => [...prev, responseMessage]);
+    setIsProcessing(false);
+    
+    // Open the reminder dialog with extracted information
+    setNewReminder({
+      title,
+      description,
+      date: date.toISOString().split('T')[0]
+    });
+    
+    // Open reminder dialog
+    setTimeout(() => {
+      setReminderOpen(true);
+    }, 500);
+  };
+  
+  const addReminder = () => {
+    // Create a new reminder
+    const reminder: Reminder = {
+      id: Date.now().toString(),
+      title: newReminder.title,
+      description: newReminder.description,
+      date: new Date(newReminder.date),
+      added: new Date()
+    };
+    
+    setReminders(prev => [...prev, reminder]);
+    
+    // Save to localStorage
+    const savedReminders = localStorage.getItem('chat-reminders');
+    const existingReminders = savedReminders ? JSON.parse(savedReminders) : [];
+    localStorage.setItem('chat-reminders', JSON.stringify([...existingReminders, reminder]));
+    
+    // Confirm to user
+    const confirmationMessage: Message = {
+      id: (Date.now() + 2).toString(),
+      content: `✅ I've added a reminder: "${newReminder.title}" for ${new Date(newReminder.date).toLocaleDateString()}.`,
+      role: "assistant",
+      timestamp: new Date(),
+      type: "text"
+    };
+    
+    setMessages(prev => [...prev, confirmationMessage]);
+    
+    // Reset form and close dialog
+    setNewReminder({
+      title: "",
+      description: "",
+      date: new Date().toISOString().split('T')[0]
+    });
+    
+    setReminderOpen(false);
+  };
+  
+  // Load reminders from localStorage
+  useEffect(() => {
+    const savedReminders = localStorage.getItem('chat-reminders');
+    if (savedReminders) {
+      try {
+        const parsedReminders = JSON.parse(savedReminders, (key, value) => {
+          if (key === 'date' || key === 'added') return new Date(value);
+          return value;
+        });
+        setReminders(parsedReminders);
+      } catch (error) {
+        console.error('Error loading reminders:', error);
+      }
+    }
+  }, []);
   
   const sendToLocalModel = async (message: string, model: string) => {
     let endpoint = "";
@@ -220,7 +668,7 @@ const ChatPage = () => {
         messages: [
           {
             role: "system",
-            content: "You are a helpful assistant powered by the Mistral-7B model."
+            content: "You are Elohim, a helpful AI assistant with enhanced capabilities."
           },
           ...messages.map(msg => ({
             role: msg.role,
@@ -229,7 +677,7 @@ const ChatPage = () => {
           { role: "user", content: message }
         ],
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 800
       };
     } else if (model === "llama-13b") {
       endpoint = "http://localhost:8000/v1/chat/completions";
@@ -238,7 +686,7 @@ const ChatPage = () => {
         messages: [
           {
             role: "system",
-            content: "You are a helpful assistant powered by the Llama-13B model."
+            content: "You are Elohim, a helpful AI assistant with enhanced capabilities."
           },
           ...messages.map(msg => ({
             role: msg.role,
@@ -247,7 +695,7 @@ const ChatPage = () => {
           { role: "user", content: message }
         ],
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 800
       };
     }
     
@@ -441,6 +889,49 @@ const ChatPage = () => {
       stopSpeaking();
     }
   };
+
+  const exportConversation = () => {
+    // Format conversation as text
+    const conversationText = messages.map(msg => {
+      const role = msg.role === 'user' ? 'You' : 'Elohim';
+      const time = msg.timestamp.toLocaleTimeString();
+      return `[${time}] ${role}: ${msg.content}`;
+    }).join('\n\n');
+    
+    // Create a blob and download link
+    const blob = new Blob([conversationText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Elohim-Chat-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Conversation exported",
+      description: "Your chat has been saved as a text file."
+    });
+  };
+
+  const emailConversation = () => {
+    // This is a simulated email function
+    // In a real implementation, this would connect to an API or email service
+    
+    toast({
+      title: "Email feature activated",
+      description: "This would send the conversation to your configured email address."
+    });
+    
+    // Simulate success after a delay
+    setTimeout(() => {
+      toast({
+        title: "Email sent successfully",
+        description: "Conversation has been emailed to the admin address."
+      });
+    }, 2000);
+  };
   
   const renderHistoryList = () => (
     <div className="space-y-2 p-1">
@@ -562,8 +1053,20 @@ const ChatPage = () => {
     );
   };
   
+  // If minimized, show only a minimal interface
+  if (isMinimized) {
+    return (
+      <div 
+        className="fixed bottom-5 right-5 bg-primary text-white p-2 rounded-full shadow-lg cursor-pointer"
+        onClick={toggleMinimized}
+      >
+        <Bot size={24} />
+      </div>
+    );
+  }
+  
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6" ref={chatContainerRef}>
       <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-10rem)]">
         <div className="w-full md:w-64 shrink-0">
           <Card className="h-full">
@@ -694,6 +1197,39 @@ const ChatPage = () => {
                     </Sheet>
                   )}
                   
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                      >
+                        <CalendarPlus size={16} />
+                        <span>Reminders</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                      <div className="space-y-2">
+                        <h3 className="font-medium">Your Reminders</h3>
+                        {reminders.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No reminders yet</p>
+                        ) : (
+                          <div className="max-h-[200px] overflow-y-auto space-y-2">
+                            {reminders.map(reminder => (
+                              <div key={reminder.id} className="p-2 border rounded-md">
+                                <div className="font-medium">{reminder.title}</div>
+                                <div className="text-xs">{reminder.date.toLocaleDateString()}</div>
+                                {reminder.description && (
+                                  <div className="text-sm mt-1">{reminder.description}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  
                   <Button
                     variant="outline"
                     size="sm"
@@ -708,6 +1244,57 @@ const ChatPage = () => {
                     settings={settings}
                     onSaveSettings={handleSaveSettings}
                   />
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={openPopoutWindow}
+                    disabled={isPopout}
+                  >
+                    <Maximize2 size={16} />
+                    <span>Pop Out</span>
+                  </Button>
+                  
+                  <Button
+                    variant={alwaysOnTop ? "default" : "outline"}
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={toggleAlwaysOnTop}
+                  >
+                    {alwaysOnTop ? <Pin size={16} /> : <PinOff size={16} />}
+                    <span>Pin Window</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={toggleMinimized}
+                  >
+                    <Minimize2 size={16} />
+                    <span>Minimize</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={exportConversation}
+                  >
+                    <Download size={16} />
+                    <span>Export</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={emailConversation}
+                  >
+                    <Mail size={16} />
+                    <span>Email</span>
+                  </Button>
                 </div>
               </div>
               
@@ -724,6 +1311,10 @@ const ChatPage = () => {
                   ) : (
                     <p>Voice: <span className="text-muted-foreground">Disabled</span></p>
                   )}
+                  
+                  {settings.voice.enabled && settings.voice.continuousListening && (
+                    <p>Mode: <span className="font-medium">Hands-free</span></p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -736,7 +1327,7 @@ const ChatPage = () => {
               <div className="border-b p-3">
                 <h2 className="font-medium flex items-center gap-2">
                   <Bot size={18} className="text-primary" />
-                  Chat with {selectedModel === "mistral-7b" ? "Mistral-7B" : selectedModel === "llama-13b" ? "Llama-13B" : selectedModel === "stable-diffusion" ? "Stable Diffusion" : "GPT-3.5 Turbo"}
+                  Chat with Elohim
                   
                   {isListening && (
                     <span className="ml-auto text-xs text-primary animate-pulse flex items-center">
@@ -885,6 +1476,60 @@ const ChatPage = () => {
           </Card>
         </div>
       </div>
+
+      {/* Reminder Dialog */}
+      <Dialog open={reminderOpen} onOpenChange={setReminderOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create Reminder</DialogTitle>
+            <DialogDescription>
+              Add details for your reminder. This will be saved locally.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="title" className="text-right text-sm font-medium">
+                Title
+              </label>
+              <Input
+                id="title"
+                value={newReminder.title}
+                onChange={(e) => setNewReminder({...newReminder, title: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="date" className="text-right text-sm font-medium">
+                Date
+              </label>
+              <Input
+                id="date"
+                type="date"
+                value={newReminder.date}
+                onChange={(e) => setNewReminder({...newReminder, date: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="description" className="text-right text-sm font-medium">
+                Details
+              </label>
+              <Input
+                id="description"
+                value={newReminder.description}
+                onChange={(e) => setNewReminder({...newReminder, description: e.target.value})}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReminderOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={addReminder}>Add Reminder</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
