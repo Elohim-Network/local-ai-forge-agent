@@ -34,12 +34,32 @@ export function StatusOverview({
   return (
     <div className="space-y-6">
       {useTestComponents ? (
-        <TestComponentStatus />
+        <TestComponentStatus title="Test Components Status" />
       ) : (
-        <SystemComponentStatus 
-          models={models} 
-          modules={modules} 
-        />
+        <div className="space-y-4">
+          <SystemComponentStatus 
+            title="Models"
+            items={models}
+            renderActions={(model: ModelInfo) => (
+              <Button variant="outline" size="sm">
+                {model.status === "active" ? "Restart" : "Fix"}
+              </Button>
+            )}
+          />
+          <SystemComponentStatus 
+            title="Modules"
+            items={modules}
+            renderActions={(module: ModuleStatus) => (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => restartModule(module.id)}
+              >
+                Restart
+              </Button>
+            )}
+          />
+        </div>
       )}
       
       {chatIssuesDetected && fixChatIssues && (

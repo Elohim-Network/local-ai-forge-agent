@@ -91,15 +91,16 @@ function DiagnosticAgentPage() {
         // Check for common chat issues
         const hasStorageIssues = !localStorage.getItem('chat-sessions');
         const hasConsoleErrors = document.querySelectorAll('.chat-error-indicator').length > 0;
+        const lastChatError = localStorage.getItem('last-chat-error');
         
         // Set chat issues detected flag
-        setChatIssuesDetected(hasStorageIssues || hasConsoleErrors);
+        setChatIssuesDetected(hasStorageIssues || hasConsoleErrors || !!lastChatError);
         
-        if (hasStorageIssues || hasConsoleErrors) {
+        if (hasStorageIssues || hasConsoleErrors || lastChatError) {
           toast({
             title: "Chat Issues Detected",
             description: "Problems found with the chat feature. Click 'Fix Issues' to repair.",
-            variant: "warning",
+            variant: "warning"
           });
         }
       } catch (error) {

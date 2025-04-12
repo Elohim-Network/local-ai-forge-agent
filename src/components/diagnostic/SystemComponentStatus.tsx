@@ -5,33 +5,30 @@ import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { StatusErrorBoundary } from "./system-status/StatusErrorBoundary";
 import { SystemStatusList } from "./system-status/SystemStatusList";
 
-type ComponentItem = ModelInfo | ModuleStatus;
+interface ComponentItem extends ModelInfo, ModuleStatus {}
 
-interface SystemComponentStatusProps<T extends ComponentItem> {
+interface SystemComponentStatusProps {
   title: string;
-  items: T[];
-  renderActions: (item: T) => React.ReactNode;
+  items: ComponentItem[];
+  renderActions: (item: ComponentItem) => React.ReactNode;
 }
 
-export function SystemComponentStatus<T extends ComponentItem>({ 
+export function SystemComponentStatus({ 
   title, 
   items, 
   renderActions 
-}: SystemComponentStatusProps<T>) {
+}: SystemComponentStatusProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    console.log("SystemComponentStatus mounted with:", { title, items, renderActions });
+    console.log("SystemComponentStatus mounted with:", { title, items });
     setMounted(true);
     return () => {
       console.log("SystemComponentStatus unmounting");
     };
   }, [title, items]);
 
-  console.log("SystemComponentStatus rendering with items:", items);
-  
   if (!mounted) {
-    console.log("SystemComponentStatus not mounted yet, returning null");
     return null;
   }
 
