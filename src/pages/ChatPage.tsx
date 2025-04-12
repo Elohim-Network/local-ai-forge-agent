@@ -166,6 +166,7 @@ const ChatPage = () => {
     isRecording, 
     isSpeaking,
     transcript, 
+    isProcessing: voiceProcessing,
     startRecording, 
     stopRecording,
     speak,
@@ -175,6 +176,7 @@ const ChatPage = () => {
     autoListen: settings.voice.autoListen,
     onSpeechResult: (text) => {
       if (text.trim()) {
+        console.log("Voice input received:", text);
         setInput(text);
         // Always send automatically after recognizing speech
         sendMessage(text);
@@ -192,7 +194,9 @@ const ChatPage = () => {
     autoSendThreshold: settings.voice.autoSendThreshold,
     useCustomVoice: settings.voice.useCustomVoice,
     customVoiceName: settings.voice.customVoiceName,
-    autoReplyEnabled: settings.voice.autoReplyEnabled
+    autoReplyEnabled: settings.voice.autoReplyEnabled,
+    useServerTranscription: true,
+    transcriptionEndpoint: "/api/transcribe"
   });
   
   useEffect(() => {
@@ -1234,8 +1238,15 @@ const ChatPage = () => {
                   size="icon"
                   variant={isRecording || isListening ? "destructive" : "secondary"}
                   className={`h-7 w-7 bg-opacity-80 ${isRecording || isListening ? 'animate-pulse' : ''}`}
-                  onClick={isRecording || isListening ? stopRecording : startRecording}
-                  disabled={isProcessing}
+                  onClick={() => {
+                    console.log("Voice button clicked", { isRecording, isListening });
+                    if (isRecording || isListening) {
+                      stopRecording();
+                    } else {
+                      startRecording();
+                    }
+                  }}
+                  disabled={isProcessing || voiceProcessing}
                   title={isRecording || isListening ? "Stop recording" : "Start recording"}
                 >
                   {isRecording || isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}

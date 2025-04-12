@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
+import { ModelInfo, ModuleStatus, ModelStatus } from "@/contexts/SystemStatusContext";
 import { StatusErrorBoundary } from "./system-status/StatusErrorBoundary";
 import { SystemStatusList } from "./system-status/SystemStatusList";
 
@@ -9,7 +9,7 @@ import { SystemStatusList } from "./system-status/SystemStatusList";
 export interface ComponentItem {
   id: string;
   name: string;
-  status?: string;
+  status?: ModelStatus | string;
   size?: string;
   version?: string;
   port?: number;

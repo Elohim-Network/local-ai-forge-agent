@@ -7,6 +7,7 @@ import { MessageSquare } from "lucide-react";
 import { CollapsibleIssues } from "./CollapsibleIssues";
 import { SystemComponentStatus, ComponentItem } from "./SystemComponentStatus";
 import { TestComponentStatus } from "./TestComponentStatus";
+import { toast } from "@/hooks/use-toast";
 
 interface StatusOverviewProps {
   models: ModelInfo[];
@@ -42,6 +43,35 @@ export function StatusOverview({
     status: module.isActive ? 'active' : 'inactive'
   }));
 
+  // Create handler wrappers with logging to debug button functionality issues
+  const handleModelAction = (model: ComponentItem) => {
+    console.log("Model action triggered for:", model.id);
+    if (model.status !== 'active') {
+      console.log("Activating model:", model.id);
+      activateModel(model.id);
+      toast({
+        title: "Action triggered",
+        description: `Activating model: ${model.name}`,
+      });
+    } else {
+      console.log("Restarting active model:", model.id);
+      // For active models, we'll implement a restart
+      toast({
+        title: "Action triggered",
+        description: `Restarting model: ${model.name}`,
+      });
+    }
+  };
+
+  const handleModuleRestart = (moduleId: string) => {
+    console.log("Module restart triggered for:", moduleId);
+    restartModule(moduleId);
+    toast({
+      title: "Action triggered",
+      description: "Module restart initiated",
+    });
+  };
+
   return (
     <div className="space-y-6">
       {useTestComponents ? (
@@ -52,7 +82,11 @@ export function StatusOverview({
             title="Models"
             items={modelItems}
             renderActions={(model) => (
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleModelAction(model)}
+              >
                 {model.status === 'active' ? "Restart" : "Fix"}
               </Button>
             )}
@@ -64,7 +98,7 @@ export function StatusOverview({
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => restartModule(module.id)}
+                onClick={() => handleModuleRestart(module.id)}
               >
                 Restart
               </Button>
@@ -89,7 +123,16 @@ export function StatusOverview({
               variant="outline"
               size="sm"
               className="gap-1 border-amber-200"
-              onClick={fixChatIssues}
+              onClick={() => {
+                console.log("Fix chat issues triggered");
+                if (fixChatIssues) {
+                  fixChatIssues();
+                  toast({
+                    title: "Chat Fix Initiated",
+                    description: "Attempting to resolve chat system issues",
+                  });
+                }
+              }}
             >
               <MessageSquare size={14} />
               Fix Chat
