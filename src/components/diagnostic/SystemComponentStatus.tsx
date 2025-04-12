@@ -5,18 +5,16 @@ import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { StatusErrorBoundary } from "./system-status/StatusErrorBoundary";
 import { SystemStatusList } from "./system-status/SystemStatusList";
 
-// Make all properties optional by creating a partial type
+// Create a unified type that combines ModelInfo and ModuleStatus
 interface ComponentItem {
   id: string;
   name: string;
-  // ModelInfo properties
-  status?: string;
+  status?: ModelInfo['status'] | ModuleStatus['isActive'];
   size?: string;
   version?: string;
   port?: number;
   progress?: number;
   error?: string;
-  // ModuleStatus properties
   isActive?: boolean;
 }
 

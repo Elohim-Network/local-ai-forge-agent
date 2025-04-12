@@ -31,6 +31,17 @@ export function StatusOverview({
   chatIssuesDetected,
   fixChatIssues
 }: StatusOverviewProps) {
+  // Transform ModelInfo and ModuleStatus to ComponentItem
+  const modelItems = models.map(model => ({
+    ...model,
+    isActive: model.status === 'active'
+  }));
+
+  const moduleItems = modules.map(module => ({
+    ...module,
+    status: module.isActive ? 'active' : 'inactive'
+  }));
+
   return (
     <div className="space-y-6">
       {useTestComponents ? (
@@ -39,17 +50,17 @@ export function StatusOverview({
         <div className="space-y-4">
           <SystemComponentStatus 
             title="Models"
-            items={models as any[]} // Type cast to resolve the type error
-            renderActions={(model: any) => (
+            items={modelItems}
+            renderActions={(model) => (
               <Button variant="outline" size="sm">
-                {model.status === "active" ? "Restart" : "Fix"}
+                {model.status === 'active' ? "Restart" : "Fix"}
               </Button>
             )}
           />
           <SystemComponentStatus 
             title="Modules"
-            items={modules as any[]} // Type cast to resolve the type error
-            renderActions={(module: any) => (
+            items={moduleItems}
+            renderActions={(module) => (
               <Button 
                 variant="outline" 
                 size="sm"
