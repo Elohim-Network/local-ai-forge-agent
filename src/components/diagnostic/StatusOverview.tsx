@@ -39,8 +39,8 @@ export function StatusOverview({
         <div className="space-y-4">
           <SystemComponentStatus 
             title="Models"
-            items={models}
-            renderActions={(model: ModelInfo) => (
+            items={models as any[]} // Type cast to resolve the type error
+            renderActions={(model: any) => (
               <Button variant="outline" size="sm">
                 {model.status === "active" ? "Restart" : "Fix"}
               </Button>
@@ -48,8 +48,8 @@ export function StatusOverview({
           />
           <SystemComponentStatus 
             title="Modules"
-            items={modules}
-            renderActions={(module: ModuleStatus) => (
+            items={modules as any[]} // Type cast to resolve the type error
+            renderActions={(module: any) => (
               <Button 
                 variant="outline" 
                 size="sm"

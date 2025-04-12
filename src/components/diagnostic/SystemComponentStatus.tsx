@@ -5,7 +5,20 @@ import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { StatusErrorBoundary } from "./system-status/StatusErrorBoundary";
 import { SystemStatusList } from "./system-status/SystemStatusList";
 
-interface ComponentItem extends ModelInfo, ModuleStatus {}
+// Make all properties optional by creating a partial type
+interface ComponentItem {
+  id: string;
+  name: string;
+  // ModelInfo properties
+  status?: string;
+  size?: string;
+  version?: string;
+  port?: number;
+  progress?: number;
+  error?: string;
+  // ModuleStatus properties
+  isActive?: boolean;
+}
 
 interface SystemComponentStatusProps {
   title: string;

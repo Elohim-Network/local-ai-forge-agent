@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -100,7 +99,7 @@ function DiagnosticAgentPage() {
           toast({
             title: "Chat Issues Detected",
             description: "Problems found with the chat feature. Click 'Fix Issues' to repair.",
-            variant: "warning"
+            variant: "default"
           });
         }
       } catch (error) {
