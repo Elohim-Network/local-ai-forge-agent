@@ -2,7 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, MessageSquareText } from "lucide-react";
 import { useEnv } from "@/lib/config/useEnv";
 
 interface HeaderSectionProps {
@@ -11,6 +11,8 @@ interface HeaderSectionProps {
   totalIssues: number;
   runDiagnostic: () => void;
   getStatusColorClass: (status: "operational" | "warning" | "critical") => string;
+  runTestChat?: () => void;
+  chatIssuesDetected?: boolean;
 }
 
 export function HeaderSection({ 
@@ -18,7 +20,9 @@ export function HeaderSection({
   isChecking, 
   totalIssues, 
   runDiagnostic, 
-  getStatusColorClass 
+  getStatusColorClass,
+  runTestChat,
+  chatIssuesDetected
 }: HeaderSectionProps) {
   const { env } = useEnv();
   
@@ -38,6 +42,11 @@ export function HeaderSection({
            systemStatus === "warning" ? "Minor Issues Detected" : 
            "Critical Issues Detected"}
         </Badge>
+        {chatIssuesDetected && (
+          <Badge variant="outline" className="border-amber-500 text-amber-500">
+            Chat Issues
+          </Badge>
+        )}
         <Button 
           onClick={runDiagnostic} 
           className="gap-2" 
@@ -46,6 +55,16 @@ export function HeaderSection({
           <RefreshCw size={16} className={isChecking ? "animate-spin" : ""} />
           {isChecking ? "Running Diagnostics..." : "Run Diagnostic"}
         </Button>
+        {runTestChat && (
+          <Button 
+            onClick={runTestChat} 
+            variant="outline"
+            className="gap-2"
+          >
+            <MessageSquareText size={16} />
+            Test Chat
+          </Button>
+        )}
       </div>
     </div>
   );

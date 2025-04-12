@@ -10,6 +10,8 @@ import { HeaderSection } from "@/components/diagnostic/HeaderSection";
 import { TabsPanel } from "@/components/diagnostic/TabsPanel";
 import { DebugToggle } from "@/components/diagnostic/DebugToggle";
 import { getStatusColorClass } from "@/components/diagnostic/StatusIcons";
+import { TestRunDialog } from "@/components/system/TestRunDialog";
+import { useNavigate } from "react-router-dom";
 
 function DiagnosticAgentPage() {
   try {
@@ -27,6 +29,7 @@ function DiagnosticAgentPage() {
     } = useSystemStatus();
     const { toast } = useToast();
     const { env } = useEnv();
+    const navigate = useNavigate();
     
     console.log("Models:", models);
     console.log("Modules:", modules);
@@ -36,15 +39,18 @@ function DiagnosticAgentPage() {
     const [scanInterval, setScanInterval] = useState(env.SCAN_INTERVAL_MINUTES);
     const [lastAutoScan, setLastAutoScan] = useState<Date | null>(null);
     const [useTestComponents, setUseTestComponents] = useState(false);
+    const [isTestRunOpen, setIsTestRunOpen] = useState(false);
+    const [chatIssuesDetected, setChatIssuesDetected] = useState(false);
 
     const modelIssues = models.filter(m => m.status !== "active").length;
     const moduleIssues = modules.filter(m => !m.isActive).length;
-    const totalIssues = modelIssues + moduleIssues;
+    const totalIssues = modelIssues + moduleIssues + (chatIssuesDetected ? 1 : 0);
 
     const systemStatus = totalIssues === 0 ? "operational" : totalIssues < 3 ? "warning" : "critical";
 
     useEffect(() => {
       runDiagnostic();
+      detectChatIssues();
     }, []);
 
     useEffect(() => {
@@ -53,6 +59,7 @@ function DiagnosticAgentPage() {
       if (autoScan && scanInterval > 0) {
         intervalId = window.setInterval(() => {
           runDiagnostic();
+          detectChatIssues();
           setLastAutoScan(new Date());
           toast({
             title: "Auto-diagnostic completed",
@@ -79,6 +86,56 @@ function DiagnosticAgentPage() {
       }
     };
 
+    const detectChatIssues = async () => {
+      try {
+        // Check for common chat issues
+        const hasStorageIssues = !localStorage.getItem('chat-sessions');
+        const hasConsoleErrors = document.querySelectorAll('.chat-error-indicator').length > 0;
+        
+        // Set chat issues detected flag
+        setChatIssuesDetected(hasStorageIssues || hasConsoleErrors);
+        
+        if (hasStorageIssues || hasConsoleErrors) {
+          toast({
+            title: "Chat Issues Detected",
+            description: "Problems found with the chat feature. Click 'Fix Issues' to repair.",
+            variant: "warning",
+          });
+        }
+      } catch (error) {
+        console.error("Error detecting chat issues:", error);
+      }
+    };
+
+    const fixChatIssues = () => {
+      try {
+        // Initialize empty chat sessions if missing
+        if (!localStorage.getItem('chat-sessions')) {
+          localStorage.setItem('chat-sessions', JSON.stringify([]));
+        }
+        
+        // Navigate to chat page to force a refresh
+        toast({
+          title: "Chat Repair Complete",
+          description: "Fixed chat storage issues. Please test the chat feature now.",
+        });
+        
+        setChatIssuesDetected(false);
+        navigate("/chat");
+      } catch (error) {
+        console.error("Error fixing chat issues:", error);
+        toast({
+          title: "Repair Failed",
+          description: "Could not fix chat issues. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const runTestChat = () => {
+      setIsTestRunOpen(true);
+    };
+
     const formatLastChecked = () => {
       if (!lastChecked) return "Never";
       
@@ -98,6 +155,8 @@ function DiagnosticAgentPage() {
           totalIssues={totalIssues}
           runDiagnostic={runDiagnostic}
           getStatusColorClass={getStatusColorClass}
+          runTestChat={runTestChat}
+          chatIssuesDetected={chatIssuesDetected}
         />
 
         <DebugToggle 
@@ -125,6 +184,13 @@ function DiagnosticAgentPage() {
           activateModel={activateModel}
           downloadModel={downloadModel}
           restartModule={restartModule}
+          chatIssuesDetected={chatIssuesDetected}
+          fixChatIssues={fixChatIssues}
+        />
+        
+        <TestRunDialog 
+          open={isTestRunOpen} 
+          onOpenChange={setIsTestRunOpen} 
         />
       </div>
     );

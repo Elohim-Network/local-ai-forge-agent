@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { Button } from "@/components/ui/button";
-import { Zap } from "lucide-react";
+import { Zap, MessageSquare } from "lucide-react";
 import { StatusIcon } from "./StatusIcons";
 import { StatusOverview } from "./StatusOverview";
 import { DiagnosticReport } from "./DiagnosticReport";
 import { AutoDiagnosticSettings } from "./AutoDiagnosticSettings";
+import { CollapsibleIssues } from "./CollapsibleIssues";
 
 interface TabsPanelProps {
   activeTab: string;
@@ -30,6 +31,8 @@ interface TabsPanelProps {
   activateModel: (id: string) => void;
   downloadModel: (id: string) => void;
   restartModule: (id: string) => void;
+  chatIssuesDetected?: boolean;
+  fixChatIssues?: () => void;
 }
 
 export function TabsPanel({
@@ -51,7 +54,9 @@ export function TabsPanel({
   fixAllIssues,
   activateModel,
   downloadModel,
-  restartModule
+  restartModule,
+  chatIssuesDetected,
+  fixChatIssues
 }: TabsPanelProps) {
   return (
     <Card className="border-muted/40">
@@ -67,14 +72,26 @@ export function TabsPanel({
             </div>
           </div>
           {totalIssues > 0 && (
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={fixAllIssues}
-            >
-              <Zap size={16} />
-              Fix All Issues
-            </Button>
+            <div className="flex gap-2">
+              {chatIssuesDetected && fixChatIssues && (
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={fixChatIssues}
+                >
+                  <MessageSquare size={16} />
+                  Fix Chat Issues
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={fixAllIssues}
+              >
+                <Zap size={16} />
+                Fix All Issues
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -96,6 +113,8 @@ export function TabsPanel({
               activateModel={activateModel}
               downloadModel={downloadModel}
               restartModule={restartModule}
+              chatIssuesDetected={chatIssuesDetected}
+              fixChatIssues={fixChatIssues}
             />
           </TabsContent>
           
@@ -105,6 +124,7 @@ export function TabsPanel({
               modules={modules}
               systemStatus={systemStatus}
               lastChecked={lastChecked}
+              chatIssuesDetected={chatIssuesDetected}
             />
           </TabsContent>
           

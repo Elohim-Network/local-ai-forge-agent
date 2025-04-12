@@ -2,7 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, MessageSquare } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 
@@ -13,6 +13,8 @@ interface CollapsibleIssuesProps {
   activateModel: (id: string) => void;
   downloadModel: (id: string) => void;
   restartModule: (id: string) => void;
+  chatIssuesDetected?: boolean;
+  fixChatIssues?: () => void;
 }
 
 export function CollapsibleIssues({ 
@@ -21,7 +23,9 @@ export function CollapsibleIssues({
   modules, 
   activateModel, 
   downloadModel, 
-  restartModule 
+  restartModule,
+  chatIssuesDetected,
+  fixChatIssues
 }: CollapsibleIssuesProps) {
   if (totalIssues === 0) return null;
   
@@ -100,6 +104,26 @@ export function CollapsibleIssues({
             </Button>
           </div>
         ))}
+        
+        {chatIssuesDetected && fixChatIssues && (
+          <div className="flex justify-between items-center border-b pb-2">
+            <div>
+              <div className="font-medium">Chat System</div>
+              <div className="text-sm text-muted-foreground">
+                Storage and rendering issues detected
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fixChatIssues}
+              className="gap-1"
+            >
+              <MessageSquare size={12} />
+              Fix Chat
+            </Button>
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

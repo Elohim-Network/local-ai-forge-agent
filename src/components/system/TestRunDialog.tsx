@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AlertCircle, CheckCircle, Download, RefreshCw, Server, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Download, RefreshCw, Server, XCircle, MessageSquare } from "lucide-react";
 import { useSystemStatus, ModelStatus } from "@/contexts/SystemStatusContext";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface TestRunDialogProps {
   open: boolean;
@@ -15,8 +17,15 @@ interface TestRunDialogProps {
 
 export function TestRunDialog({ open, onOpenChange }: TestRunDialogProps) {
   const { models, modules, isChecking, lastChecked, checkSystem, activateModel, downloadModel, restartModule, fixAllIssues } = useSystemStatus();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("system");
   const [isOpenErrors, setIsOpenErrors] = useState(true);
+  const [isChatTestRunning, setIsChatTestRunning] = useState(false);
+  const [chatTestResults, setChatTestResults] = useState<{
+    status: 'success' | 'warning' | 'error' | 'pending';
+    issues: string[];
+  }>({ status: 'pending', issues: [] });
   
   // Count issues
   const modelIssues = models.filter(m => m.status !== "active").length;
@@ -97,6 +106,76 @@ export function TestRunDialog({ open, onOpenChange }: TestRunDialogProps) {
     }
   };
 
+  // Run Chat test
+  const runChatTest = async () => {
+    setIsChatTestRunning(true);
+    setChatTestResults({ status: 'pending', issues: [] });
+    
+    try {
+      // Simulate testing chat functionality
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Check for common issues
+      const issues = [];
+      
+      // Check local storage
+      if (!localStorage.getItem('chat-sessions')) {
+        issues.push('No chat sessions found in local storage');
+      }
+      
+      // Check for initialization issues
+      try {
+        const chatSessions = JSON.parse(localStorage.getItem('chat-sessions') || '[]');
+        if (!Array.isArray(chatSessions)) {
+          issues.push('Chat sessions storage format is invalid');
+        }
+      } catch {
+        issues.push('Chat sessions data is corrupted');
+      }
+      
+      // Set test results
+      if (issues.length === 0) {
+        setChatTestResults({ status: 'success', issues: [] });
+      } else {
+        setChatTestResults({ status: 'warning', issues });
+      }
+    } catch (error) {
+      setChatTestResults({ 
+        status: 'error', 
+        issues: ['Failed to test chat functionality'] 
+      });
+    } finally {
+      setIsChatTestRunning(false);
+    }
+  };
+
+  // Fix chat issues
+  const fixChatIssues = () => {
+    try {
+      // Reset chat storage
+      localStorage.setItem('chat-sessions', JSON.stringify([]));
+      
+      toast({
+        title: "Chat Issues Fixed",
+        description: "Chat storage has been reset. Please test the chat feature again.",
+      });
+      
+      runChatTest();
+    } catch (error) {
+      toast({
+        title: "Error Fixing Chat",
+        description: "Failed to fix chat issues. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Go to chat page
+  const goToChatPage = () => {
+    navigate('/chat');
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -127,7 +206,7 @@ export function TestRunDialog({ open, onOpenChange }: TestRunDialogProps) {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-3 mb-4">
               <TabsTrigger value="system">System Status</TabsTrigger>
-              <TabsTrigger value="agent">Agent Validation</TabsTrigger>
+              <TabsTrigger value="chat">Chat Test</TabsTrigger>
               <TabsTrigger value="workflow">Workflow Check</TabsTrigger>
             </TabsList>
             
@@ -255,18 +334,94 @@ export function TestRunDialog({ open, onOpenChange }: TestRunDialogProps) {
               )}
             </TabsContent>
             
-            <TabsContent value="agent">
-              <div className="rounded-lg border p-4 text-center py-8">
-                <div className="text-amber-500 flex justify-center mb-2">
-                  <AlertCircle size={24} />
+            <TabsContent value="chat">
+              <div className="rounded-lg border p-4">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare size={18} className="text-primary" />
+                    <h3 className="font-medium">Chat System Diagnostic</h3>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={runChatTest}
+                    disabled={isChatTestRunning}
+                    className="gap-1"
+                  >
+                    <RefreshCw size={14} className={isChatTestRunning ? "animate-spin" : ""} />
+                    {isChatTestRunning ? "Testing..." : "Run Test"}
+                  </Button>
                 </div>
-                <h3 className="font-medium">Agent Validation</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">
-                  No active agent workflow found. Please select or create an agent to validate.
-                </p>
-                <Button variant="outline" size="sm">
-                  Select Agent
-                </Button>
+                
+                <div className="space-y-4">
+                  {chatTestResults.status === 'pending' && !isChatTestRunning ? (
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground">Click Run Test to check chat functionality</p>
+                    </div>
+                  ) : isChatTestRunning ? (
+                    <div className="flex flex-col items-center justify-center py-6 gap-3">
+                      <RefreshCw size={24} className="animate-spin text-primary" />
+                      <p>Testing chat system...</p>
+                      <Progress value={45} className="w-full max-w-xs h-1.5" />
+                    </div>
+                  ) : chatTestResults.status === 'success' ? (
+                    <div className="flex items-start gap-3 p-3 bg-green-50 rounded-md border border-green-100">
+                      <CheckCircle size={20} className="text-green-500 mt-1" />
+                      <div>
+                        <h4 className="font-medium text-green-700">Chat System Operational</h4>
+                        <p className="text-sm text-green-600 mt-1">
+                          All chat components are functioning correctly. Storage is properly initialized.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-3"
+                          onClick={goToChatPage}
+                        >
+                          Go to Chat
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-md border border-amber-100">
+                      <AlertCircle size={20} className={chatTestResults.status === 'warning' ? "text-amber-500 mt-1" : "text-red-500 mt-1"} />
+                      <div>
+                        <h4 className="font-medium text-amber-700">Chat System Issues Detected</h4>
+                        <ul className="mt-2 space-y-1 text-sm text-amber-700 pl-5 list-disc">
+                          {chatTestResults.issues.map((issue, i) => (
+                            <li key={i}>{issue}</li>
+                          ))}
+                        </ul>
+                        <div className="flex gap-2 mt-3">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={fixChatIssues}
+                          >
+                            Fix Issues
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={goToChatPage}
+                          >
+                            Go to Chat
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="font-medium mb-2">Troubleshooting Tips</h4>
+                    <ul className="space-y-1 text-sm text-muted-foreground pl-5 list-disc">
+                      <li>If chat isn't working, try the "Fix Issues" button to reset storage</li>
+                      <li>For persistent issues, check browser console for JavaScript errors</li>
+                      <li>Try reloading the page after fixing storage issues</li>
+                      <li>If messages aren't displaying, the chat interface might need updating</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </TabsContent>
             

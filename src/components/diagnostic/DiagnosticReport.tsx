@@ -1,7 +1,7 @@
 
 import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, AlertTriangle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Clock, MessageSquare } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 interface DiagnosticReportProps {
@@ -9,13 +9,20 @@ interface DiagnosticReportProps {
   modules: ModuleStatus[];
   systemStatus: "operational" | "warning" | "critical";
   lastChecked: Date | null;
+  chatIssuesDetected?: boolean;
 }
 
-export function DiagnosticReport({ models, modules, systemStatus, lastChecked }: DiagnosticReportProps) {
+export function DiagnosticReport({ 
+  models, 
+  modules, 
+  systemStatus, 
+  lastChecked,
+  chatIssuesDetected
+}: DiagnosticReportProps) {
   // Count issues
   const modelIssues = models.filter(m => m.status !== "active").length;
   const moduleIssues = modules.filter(m => !m.isActive).length;
-  const totalIssues = modelIssues + moduleIssues;
+  const totalIssues = modelIssues + moduleIssues + (chatIssuesDetected ? 1 : 0);
   
   // Get confidence rating based on issues
   const getConfidenceRating = () => {
@@ -104,6 +111,27 @@ export function DiagnosticReport({ models, modules, systemStatus, lastChecked }:
                     )}
                   </li>
                 ))}
+              </ul>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium">Application Features</h4>
+              <ul className="space-y-2 pl-6 list-disc marker:text-muted-foreground">
+                <li className="text-sm">
+                  <span className="font-medium">Chat System:</span>{" "}
+                  {chatIssuesDetected ? (
+                    <span className="text-red-500">Issues detected</span>
+                  ) : (
+                    <span className="text-green-500">Operational</span>
+                  )}
+                  {chatIssuesDetected && (
+                    <ul className="mt-1 pl-4 text-xs space-y-1 list-disc marker:text-muted-foreground">
+                      <li className="text-amber-600">Storage initialization issues detected</li>
+                      <li className="text-amber-600">Potential rendering problems</li>
+                      <li className="text-muted-foreground">Run "Fix Chat Issues" to repair</li>
+                    </ul>
+                  )}
+                </li>
               </ul>
             </div>
           </div>
