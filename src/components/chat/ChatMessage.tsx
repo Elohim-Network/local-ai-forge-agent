@@ -13,6 +13,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(message.timestamp);
+
+  // Add logging to help debug message rendering
+  console.log("Rendering message:", message);
   
   return (
     <div className={cn(
