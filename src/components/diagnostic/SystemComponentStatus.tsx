@@ -6,10 +6,10 @@ import { StatusErrorBoundary } from "./system-status/StatusErrorBoundary";
 import { SystemStatusList } from "./system-status/SystemStatusList";
 
 // Create a unified type that combines ModelInfo and ModuleStatus
-interface ComponentItem {
+export interface ComponentItem {
   id: string;
   name: string;
-  status?: ModelInfo['status'] | ModuleStatus['isActive'];
+  status?: string;
   size?: string;
   version?: string;
   port?: number;

@@ -7,6 +7,7 @@ declare global {
   interface Window {
     SpeechRecognition?: any;
     webkitSpeechRecognition?: any;
+    MediaRecorder?: any;
   }
 }
 
@@ -59,6 +60,8 @@ interface UseVoiceProps {
   useCustomVoice?: boolean;
   customVoiceName?: string;
   autoReplyEnabled?: boolean;
+  useServerTranscription?: boolean;
+  transcriptionEndpoint?: string;
 }
 
 export function useVoice({ 
@@ -73,7 +76,9 @@ export function useVoice({
   autoSendThreshold = 15,
   useCustomVoice = false,
   customVoiceName = "",
-  autoReplyEnabled = true
+  autoReplyEnabled = true,
+  useServerTranscription = false,
+  transcriptionEndpoint = "/api/transcribe"
 }: UseVoiceProps) {
   const [isListening, setIsListening] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -86,7 +91,9 @@ export function useVoice({
   const pendingTranscriptRef = useRef<string>('');
   const voicesLoadedRef = useRef<boolean>(false);
   const availableVoicesRef = useRef<SpeechSynthesisVoice[]>([]);
-
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  
   // Initialize speech recognition
   useEffect(() => {
     if (!enabled) return;
@@ -94,7 +101,7 @@ export function useVoice({
     // Fix for TypeScript and browser compatibility
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    if (SpeechRecognitionAPI) {
+    if (SpeechRecognitionAPI && !useServerTranscription) {
       recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
@@ -229,7 +236,7 @@ export function useVoice({
         stopListening();
         stopRecording();
       };
-    } else {
+    } else if (!SpeechRecognitionAPI && !useServerTranscription) {
       toast({
         title: "Speech Recognition Not Supported",
         description: "Your browser doesn't support speech recognition.",
@@ -271,7 +278,7 @@ export function useVoice({
         window.clearTimeout(silenceTimerRef.current);
       }
     };
-  }, [enabled, minConfidence, silenceTimeout, autoSendThreshold]);
+  }, [enabled, minConfidence, silenceTimeout, autoSendThreshold, useServerTranscription]);
   
   // Auto-listen mode
   useEffect(() => {
@@ -283,56 +290,177 @@ export function useVoice({
   }, [enabled, autoListen, isListening]);
 
   const startListening = () => {
-    if (!enabled || !recognitionRef.current) return;
+    if (!enabled) return;
     
-    try {
-      recognitionRef.current.start();
-      setIsListening(true);
-    } catch (error) {
-      console.error("Error starting speech recognition:", error);
+    if (useServerTranscription) {
+      startServerBasedRecording();
+    } else if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (error) {
+        console.error("Error starting speech recognition:", error);
+      }
     }
   };
 
   const stopListening = () => {
-    if (!recognitionRef.current) return;
-    
-    try {
-      recognitionRef.current.stop();
-      setIsListening(false);
-      
-      // Clear any silence timer
-      if (silenceTimerRef.current) {
-        window.clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
+    if (useServerTranscription) {
+      stopServerBasedRecording();
+    } else if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        setIsListening(false);
+        
+        // Clear any silence timer
+        if (silenceTimerRef.current) {
+          window.clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error stopping speech recognition:", error);
       }
-    } catch (error) {
-      console.error("Error stopping speech recognition:", error);
     }
   };
   
   const startRecording = () => {
-    if (!enabled || !recognitionRef.current) return;
+    if (!enabled) return;
     
     pendingTranscriptRef.current = '';
     setTranscript('');
-    try {
-      recognitionRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Error starting recording:", error);
+    
+    if (useServerTranscription) {
+      startServerBasedRecording();
+    } else if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (error) {
+        console.error("Error starting recording:", error);
+      }
     }
   };
   
   const stopRecording = () => {
-    if (!recognitionRef.current) return;
-    
-    try {
-      recognitionRef.current.stop();
-      setIsRecording(false);
-    } catch (error) {
-      console.error("Error stopping recording:", error);
+    if (useServerTranscription) {
+      stopServerBasedRecording();
+    } else if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        setIsRecording(false);
+      } catch (error) {
+        console.error("Error stopping recording:", error);
+      }
     }
   };
+  
+  const startServerBasedRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      audioChunksRef.current = [];
+      
+      const options = { mimeType: 'audio/webm' };
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
+      
+      mediaRecorderRef.current.addEventListener('dataavailable', event => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      });
+      
+      mediaRecorderRef.current.addEventListener('stop', async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        
+        // Send to server for transcription
+        if (audioBlob.size > 0) {
+          try {
+            setIsProcessing(true);
+            const result = await sendAudioToServer(audioBlob);
+            setIsProcessing(false);
+            
+            if (result && result.transcript) {
+              setTranscript(result.transcript);
+              onSpeechResult(result.transcript);
+            }
+          } catch (error) {
+            setIsProcessing(false);
+            console.error("Error transcribing audio:", error);
+            toast({
+              title: "Transcription Error",
+              description: "Failed to transcribe audio. Please try again.",
+              variant: "destructive"
+            });
+          }
+        }
+        
+        // Stop all tracks to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      });
+      
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setIsListening(true);
+      
+      // Auto-stop after silence timeout
+      if (silenceTimeout > 0) {
+        if (silenceTimerRef.current) {
+          window.clearTimeout(silenceTimerRef.current);
+        }
+        
+        silenceTimerRef.current = window.setTimeout(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            stopServerBasedRecording();
+          }
+        }, silenceTimeout);
+      }
+      
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      toast({
+        title: "Microphone Access Denied",
+        description: "Please allow microphone access to use voice features.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const stopServerBasedRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setIsListening(false);
+      
+      if (silenceTimerRef.current) {
+        window.clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+    }
+  };
+  
+  const sendAudioToServer = async (audioBlob: Blob) => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob);
+    
+    try {
+      const response = await fetch(transcriptionEndpoint, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error("Error sending audio to server:", error);
+      throw error;
+    }
+  };
+  
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const speak = (text: string) => {
     if (!enabled || !synthRef.current) return;
@@ -413,6 +541,7 @@ export function useVoice({
     isRecording,
     isSpeaking,
     transcript,
+    isProcessing,
     startListening,
     stopListening,
     startRecording,
@@ -421,4 +550,3 @@ export function useVoice({
     stopSpeaking
   };
 }
-

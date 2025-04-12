@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import { CollapsibleIssues } from "./CollapsibleIssues";
-import { SystemComponentStatus } from "./SystemComponentStatus";
+import { SystemComponentStatus, ComponentItem } from "./SystemComponentStatus";
 import { TestComponentStatus } from "./TestComponentStatus";
 
 interface StatusOverviewProps {
@@ -32,12 +32,12 @@ export function StatusOverview({
   fixChatIssues
 }: StatusOverviewProps) {
   // Transform ModelInfo and ModuleStatus to ComponentItem
-  const modelItems = models.map(model => ({
+  const modelItems: ComponentItem[] = models.map(model => ({
     ...model,
     isActive: model.status === 'active'
   }));
 
-  const moduleItems = modules.map(module => ({
+  const moduleItems: ComponentItem[] = modules.map(module => ({
     ...module,
     status: module.isActive ? 'active' : 'inactive'
   }));
