@@ -13,6 +13,19 @@ import { toast } from "@/hooks/use-toast";
 type ModelComponentItem = ComponentItem<ModelStatus>;
 type ModuleComponentItem = ComponentItem<string>;
 
+// Create aliased component types to avoid JSX parsing issues with generics
+const ModelStatusComponent = SystemComponentStatus as React.ComponentType<{
+  title: string;
+  items: ModelComponentItem[];
+  renderActions: (item: ModelComponentItem) => React.ReactNode;
+}>;
+
+const ModuleStatusComponent = SystemComponentStatus as React.ComponentType<{
+  title: string;
+  items: ModuleComponentItem[];
+  renderActions: (item: ModuleComponentItem) => React.ReactNode;
+}>;
+
 interface StatusOverviewProps {
   models: ModelInfo[];
   modules: ModuleStatus[];
@@ -92,7 +105,7 @@ export function StatusOverview({
         <TestComponentStatus title="Test Components Status" />
       ) : (
         <div className="space-y-4">
-          <SystemComponentStatus<ModelComponentItem>
+          <ModelStatusComponent
             title="Models"
             items={modelItems}
             renderActions={(model) => (
@@ -105,7 +118,7 @@ export function StatusOverview({
               </Button>
             )}
           />
-          <SystemComponentStatus<ModuleComponentItem>
+          <ModuleStatusComponent
             title="Modules"
             items={moduleItems}
             renderActions={(module) => (
