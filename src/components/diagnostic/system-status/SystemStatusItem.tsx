@@ -3,30 +3,25 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle, XCircle, AlertCircle, Server } from "lucide-react";
-import { ModelInfo, ModuleStatus, ModelStatus } from "@/contexts/SystemStatusContext";
+import { ModelStatus } from "@/contexts/SystemStatusContext";
+import { ComponentItem } from "../SystemComponentStatus";
 
-type ComponentItem = ModelInfo | ModuleStatus;
-
-interface SystemStatusItemProps<T extends ComponentItem> {
-  item: T;
-  renderActions: (item: T) => React.ReactNode;
+interface SystemStatusItemProps {
+  item: ComponentItem;
+  renderActions: (item: ComponentItem) => React.ReactNode;
 }
 
-// Type guard to determine if item is a ModelInfo
-const isModelInfo = (item: ComponentItem): item is ModelInfo => {
-  return 'status' in item && typeof item.status === 'string';
-};
-
-export function SystemStatusItem<T extends ComponentItem>({ 
+export function SystemStatusItem({ 
   item, 
   renderActions 
-}: SystemStatusItemProps<T>) {
+}: SystemStatusItemProps) {
   // Function to get status badge for an item
   const getStatusBadge = () => {
     try {
-      if (isModelInfo(item)) {
+      if (item.status === 'active' || item.status === 'available' || 
+          item.status === 'downloading' || item.status === 'error') {
         return <ModelStatusBadge status={item.status} />;
-      } else {
+      } else if (item.isActive !== undefined) {
         return item.isActive ? (
           <Badge className="bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-600/10">
             Active
@@ -36,6 +31,8 @@ export function SystemStatusItem<T extends ComponentItem>({
             Inactive
           </Badge>
         );
+      } else {
+        return <Badge>Unknown</Badge>;
       }
     } catch (error) {
       console.error("Error in getStatusBadge:", error);
@@ -46,7 +43,8 @@ export function SystemStatusItem<T extends ComponentItem>({
   // Function to get status icon for an item
   const getStatusIcon = () => {
     try {
-      if (isModelInfo(item)) {
+      if (item.status === 'active' || item.status === 'available' || 
+          item.status === 'downloading' || item.status === 'error') {
         switch (item.status) {
           case "active":
             return <CheckCircle size={16} className="text-green-500" />;
@@ -59,12 +57,14 @@ export function SystemStatusItem<T extends ComponentItem>({
           default:
             return <Server size={16} className="text-gray-400" />;
         }
-      } else {
+      } else if (item.isActive !== undefined) {
         return item.isActive ? (
           <CheckCircle size={16} className="text-green-500" />
         ) : (
           <XCircle size={16} className="text-red-500" />
         );
+      } else {
+        return <AlertCircle size={16} className="text-yellow-500" />;
       }
     } catch (error) {
       console.error("Error in getStatusIcon:", error);
@@ -82,7 +82,7 @@ export function SystemStatusItem<T extends ComponentItem>({
         {getStatusBadge()}
       </div>
 
-      {isModelInfo(item) && item.status === "downloading" && item.progress !== undefined && (
+      {item.status === "downloading" && item.progress !== undefined && (
         <div className="space-y-1">
           <Progress value={item.progress} className="h-1" />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -92,13 +92,13 @@ export function SystemStatusItem<T extends ComponentItem>({
         </div>
       )}
 
-      {isModelInfo(item) && item.status === "active" && item.port && (
+      {item.status === "active" && item.port && (
         <div className="text-xs text-green-500">
           Running on localhost:{item.port}
         </div>
       )}
 
-      {!isModelInfo(item) && item.error && (
+      {item.error && (
         <div className="text-xs text-red-500">{item.error}</div>
       )}
 

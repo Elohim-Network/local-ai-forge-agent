@@ -1,21 +1,19 @@
 
 import React from "react";
 import { SystemStatusItem } from "./SystemStatusItem";
-import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
+import { ComponentItem } from "../SystemComponentStatus";
 
-type ComponentItem = ModelInfo | ModuleStatus;
-
-interface SystemStatusListProps<T extends ComponentItem> {
-  items: T[];
-  renderActions: (item: T) => React.ReactNode;
+interface SystemStatusListProps {
+  items: ComponentItem[];
+  renderActions: (item: ComponentItem) => React.ReactNode;
   emptyMessage?: string;
 }
 
-export function SystemStatusList<T extends ComponentItem>({ 
+export function SystemStatusList({ 
   items, 
   renderActions,
   emptyMessage = "No items to display"
-}: SystemStatusListProps<T>) {
+}: SystemStatusListProps) {
   if (!items || !Array.isArray(items)) {
     console.error("SystemStatusList: items is not an array:", items);
     return (
