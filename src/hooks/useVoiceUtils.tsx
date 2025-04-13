@@ -23,12 +23,14 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
     });
     
     mediaRecorder.start();
+    console.log("Audio recording started");
     
     return {
       mediaRecorder,
       recordingPromise,
       stopRecording: () => {
         if (mediaRecorder.state !== 'inactive') {
+          console.log("Stopping audio recording");
           mediaRecorder.stop();
         }
       }
@@ -59,7 +61,9 @@ export const sendAudioToServer = async (audioBlob: Blob, endpoint: string) => {
       throw new Error(`Server returned ${response.status}: ${response.statusText}`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    console.log("Transcription result received:", result);
+    return result;
   } catch (error) {
     console.error("Error sending audio to server:", error);
     throw error;

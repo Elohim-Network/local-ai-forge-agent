@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { 
   ResizableHandle, 
   ResizablePanel, 
@@ -18,14 +18,18 @@ import { toast } from "@/hooks/use-toast";
 const WorkspacePage = () => {
   const [showPreview, setShowPreview] = useState(true);
   
-  const handleTestVoice = () => {
+  const handleTestVoice = useCallback(() => {
     console.log("Testing voice recording functionality");
     toast({
       title: "Voice Test",
       description: "Testing microphone access and audio recording..."
     });
     testVoiceRecording();
-  };
+  }, []);
+  
+  const togglePreview = useCallback(() => {
+    setShowPreview((prev) => !prev);
+  }, []);
   
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col -mx-6 -mt-6">
@@ -48,7 +52,7 @@ const WorkspacePage = () => {
               <div className="p-6">
                 <ModelSelector 
                   showPreview={showPreview} 
-                  togglePreview={() => setShowPreview(!showPreview)} 
+                  togglePreview={togglePreview} 
                 />
                 
                 <WorkspaceCanvas />
