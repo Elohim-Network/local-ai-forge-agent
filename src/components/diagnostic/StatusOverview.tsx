@@ -1,6 +1,6 @@
 
 import React from "react";
-import { ModelInfo, ModuleStatus } from "@/contexts/SystemStatusContext";
+import { ModelInfo, ModuleStatus, ModelStatus } from "@/contexts/SystemStatusContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
@@ -8,6 +8,10 @@ import { CollapsibleIssues } from "./CollapsibleIssues";
 import { SystemComponentStatus, ComponentItem } from "./SystemComponentStatus";
 import { TestComponentStatus } from "./TestComponentStatus";
 import { toast } from "@/hooks/use-toast";
+
+// Define specific types for our component items
+type ModelComponentItem = ComponentItem<ModelStatus>;
+type ModuleComponentItem = ComponentItem<string>;
 
 interface StatusOverviewProps {
   models: ModelInfo[];
@@ -33,7 +37,7 @@ export function StatusOverview({
   fixChatIssues
 }: StatusOverviewProps) {
   // Transform ModelInfo and ModuleStatus to ComponentItem
-  const modelItems: ComponentItem[] = models.map(model => ({
+  const modelItems: ModelComponentItem[] = models.map(model => ({
     id: model.id,
     name: model.name,
     status: model.status,
@@ -45,7 +49,7 @@ export function StatusOverview({
     isActive: model.status === 'active'
   }));
 
-  const moduleItems: ComponentItem[] = modules.map(module => ({
+  const moduleItems: ModuleComponentItem[] = modules.map(module => ({
     id: module.id,
     name: module.name,
     status: module.isActive ? 'active' : 'inactive',
@@ -54,7 +58,7 @@ export function StatusOverview({
   }));
 
   // Create handler wrappers with logging to debug button functionality issues
-  const handleModelAction = (model: ComponentItem) => {
+  const handleModelAction = (model: ComponentItem<any>) => {
     console.log("Model action triggered for:", model.id);
     if (model.status !== 'active') {
       console.log("Activating model:", model.id);
@@ -88,7 +92,7 @@ export function StatusOverview({
         <TestComponentStatus title="Test Components Status" />
       ) : (
         <div className="space-y-4">
-          <SystemComponentStatus 
+          <SystemComponentStatus<ModelComponentItem>
             title="Models"
             items={modelItems}
             renderActions={(model) => (
@@ -101,7 +105,7 @@ export function StatusOverview({
               </Button>
             )}
           />
-          <SystemComponentStatus 
+          <SystemComponentStatus<ModuleComponentItem>
             title="Modules"
             items={moduleItems}
             renderActions={(module) => (

@@ -6,21 +6,21 @@ import { CheckCircle, XCircle, AlertCircle, Server } from "lucide-react";
 import { ModelStatus } from "@/contexts/SystemStatusContext";
 import { ComponentItem } from "../SystemComponentStatus";
 
-interface SystemStatusItemProps {
-  item: ComponentItem;
-  renderActions: (item: ComponentItem) => React.ReactNode;
+interface SystemStatusItemProps<T extends ComponentItem<any>> {
+  item: T;
+  renderActions: (item: T) => React.ReactNode;
 }
 
-export function SystemStatusItem({ 
+export function SystemStatusItem<T extends ComponentItem<any>>({ 
   item, 
   renderActions 
-}: SystemStatusItemProps) {
+}: SystemStatusItemProps<T>) {
   // Function to get status badge for an item
   const getStatusBadge = () => {
     try {
       if (item.status === 'active' || item.status === 'available' || 
           item.status === 'downloading' || item.status === 'error') {
-        return <ModelStatusBadge status={item.status} />;
+        return <ModelStatusBadge status={item.status as ModelStatus} />;
       } else if (item.isActive !== undefined) {
         return item.isActive ? (
           <Badge className="bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-600/10">

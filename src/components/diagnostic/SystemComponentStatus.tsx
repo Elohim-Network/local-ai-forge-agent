@@ -1,34 +1,37 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ModelInfo, ModuleStatus, ModelStatus } from "@/contexts/SystemStatusContext";
+import { ModelStatus } from "@/contexts/SystemStatusContext";
 import { StatusErrorBoundary } from "./system-status/StatusErrorBoundary";
 import { SystemStatusList } from "./system-status/SystemStatusList";
 
-// Create a unified type that combines ModelInfo and ModuleStatus
-export interface ComponentItem {
+// Create a unified type that combines different component types
+export interface ComponentItemBase {
   id: string;
   name: string;
-  status?: ModelStatus | string;
-  size?: string;
-  version?: string;
-  port?: number;
-  progress?: number;
   error?: string;
   isActive?: boolean;
 }
 
-interface SystemComponentStatusProps {
+export type ComponentItem<TStatus = string | ModelStatus> = ComponentItemBase & {
+  status?: TStatus;
+  size?: string;
+  version?: string;
+  port?: number;
+  progress?: number;
+};
+
+interface SystemComponentStatusProps<T extends ComponentItem<any>> {
   title: string;
-  items: ComponentItem[];
-  renderActions: (item: ComponentItem) => React.ReactNode;
+  items: T[];
+  renderActions: (item: T) => React.ReactNode;
 }
 
-export function SystemComponentStatus({ 
+export function SystemComponentStatus<T extends ComponentItem<any>>({ 
   title, 
   items, 
   renderActions 
-}: SystemComponentStatusProps) {
+}: SystemComponentStatusProps<T>) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
