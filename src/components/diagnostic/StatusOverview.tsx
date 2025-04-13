@@ -34,13 +34,23 @@ export function StatusOverview({
 }: StatusOverviewProps) {
   // Transform ModelInfo and ModuleStatus to ComponentItem
   const modelItems: ComponentItem[] = models.map(model => ({
-    ...model,
+    id: model.id,
+    name: model.name,
+    status: model.status,
+    size: model.size,
+    version: model.version,
+    port: model.port,
+    progress: model.progress,
+    error: model.error,
     isActive: model.status === 'active'
   }));
 
   const moduleItems: ComponentItem[] = modules.map(module => ({
-    ...module,
-    status: module.isActive ? 'active' : 'inactive'
+    id: module.id,
+    name: module.name,
+    status: module.isActive ? 'active' : 'inactive',
+    error: module.error,
+    isActive: module.isActive
   }));
 
   // Create handler wrappers with logging to debug button functionality issues

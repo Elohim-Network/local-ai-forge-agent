@@ -2,13 +2,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bot, PlayCircle, Save, Settings } from "lucide-react";
+import { ReactNode } from "react";
 
 interface WorkspaceHeaderProps {
   title: string;
   type: string;
+  children?: ReactNode;
 }
 
-export function WorkspaceHeader({ title, type }: WorkspaceHeaderProps) {
+export function WorkspaceHeader({ title, type, children }: WorkspaceHeaderProps) {
   return (
     <div className="border-b border-border px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -19,6 +21,7 @@ export function WorkspaceHeader({ title, type }: WorkspaceHeaderProps) {
         </Badge>
       </div>
       <div className="flex items-center gap-2">
+        {children}
         <Button variant="outline" size="sm" className="gap-2">
           <Save size={14} />
           Save
