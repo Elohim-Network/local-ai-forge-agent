@@ -701,7 +701,7 @@ const ChatPage = () => {
     let requestBody: any = {};
     
     if (model === "mistral-7b") {
-      endpoint = "http://localhost:8000/v1/chat/completions";
+      endpoint = "http://localhost:3001/v1/chat/completions";
       requestBody = {
         model: "mistral-7b-v0.2",
         messages: [
@@ -719,7 +719,7 @@ const ChatPage = () => {
         max_tokens: 800
       };
     } else if (model === "llama-13b") {
-      endpoint = "http://localhost:8000/v1/chat/completions";
+      endpoint = "http://localhost:3001/v1/chat/completions";
       requestBody = {
         model: "llama-13b",
         messages: [
@@ -767,7 +767,7 @@ const ChatPage = () => {
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I couldn't connect to the local model. Please check that your model server is running at http://localhost:8000",
+        content: "I couldn't connect to the local model. Please check that your model server is running at http://localhost:3001",
         role: "assistant",
         timestamp: new Date(),
         type: "text"

@@ -60,7 +60,7 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
       status: "active",
       size: "4.1GB",
       version: "0.2",
-      port: envConfig.DEFAULT_MODEL_PORT
+      port: 3001 // Updated to port 3001 as shown in screenshot
     },
     {
       id: "sdxl",
