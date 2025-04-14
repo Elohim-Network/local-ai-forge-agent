@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,7 +112,9 @@ const DEFAULT_SETTINGS: ChatSettings = {
 };
 
 const ChatPage = () => {
-  // ... rest of the existing code remains unchanged until sendToLocalModel
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("mistral-7b");
 
   const sendToLocalModel = async (message: string, model: string) => {
     let endpoint = "";
@@ -196,5 +199,12 @@ const ChatPage = () => {
     }
   };
 
-  // ... rest of the existing code remains unchanged
+  return (
+    <div>
+      {/* Placeholder for ChatPage implementation */}
+      <p>ChatPage is a work in progress</p>
+    </div>
+  );
 };
+
+export default ChatPage;
