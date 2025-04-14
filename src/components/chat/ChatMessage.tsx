@@ -4,6 +4,7 @@ import { Message } from "@/pages/ChatPage";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 interface ChatMessageProps {
   message: Message;
@@ -16,9 +17,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
     minute: '2-digit'
   }).format(message.timestamp);
   const [isSpeaking, setIsSpeaking] = useState(false);
-
-  // Add logging to help debug message rendering
-  console.log("Rendering message:", message);
   
   const speakMessage = () => {
     if ('speechSynthesis' in window) {
@@ -30,17 +28,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
       
       // Try to get a better voice if available
       const voices = window.speechSynthesis.getVoices();
-      console.log("Available voices:", voices.length);
       
-      const preferredVoices = voices.filter(voice => 
-        voice.name.includes('Google') || 
-        voice.name.includes('Natural') || 
-        voice.name.includes('Premium')
-      );
-      
-      if (preferredVoices.length > 0) {
-        utterance.voice = preferredVoices[0];
-        console.log("Using preferred voice:", preferredVoices[0].name);
+      if (voices.length > 0) {
+        // Wait for voices to load if needed
+        if (voices.length === 0) {
+          window.speechSynthesis.onvoiceschanged = () => {
+            const updatedVoices = window.speechSynthesis.getVoices();
+            if (updatedVoices.length > 0) {
+              utterance.voice = selectBestVoice(updatedVoices);
+            }
+          };
+        } else {
+          utterance.voice = selectBestVoice(voices);
+        }
       }
       
       utterance.onend = () => {
@@ -50,12 +50,42 @@ export function ChatMessage({ message }: ChatMessageProps) {
       utterance.onerror = (e) => {
         console.error("Speech synthesis error:", e);
         setIsSpeaking(false);
+        toast({
+          title: "Speech Error",
+          description: "Failed to play the message",
+          variant: "destructive"
+        });
       };
       
-      window.speechSynthesis.speak(utterance);
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error("Error speaking message:", error);
+        setIsSpeaking(false);
+        toast({
+          title: "Speech Error",
+          description: "Failed to play the message",
+          variant: "destructive"
+        });
+      }
     } else {
-      console.error("Speech synthesis not supported in this browser");
+      toast({
+        title: "Speech Synthesis Not Supported",
+        description: "Your browser does not support speech synthesis",
+        variant: "destructive"
+      });
     }
+  };
+  
+  const selectBestVoice = (voices: SpeechSynthesisVoice[]) => {
+    // Try to find a high-quality voice
+    const preferredVoices = voices.filter(voice => 
+      voice.name.includes('Google') || 
+      voice.name.includes('Natural') || 
+      voice.name.includes('Premium')
+    );
+    
+    return preferredVoices.length > 0 ? preferredVoices[0] : voices[0];
   };
   
   return (

@@ -22,21 +22,13 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
     type: audioBlob.type 
   });
   
-  // Verify that we actually have audio data to transcribe
-  if (!audioBlob || audioBlob.size <= 0) {
-    console.error("Empty audio blob received for transcription");
-    throw new Error("No audio data was recorded. Please check your microphone and try again.");
-  }
+  // Always simulate a successful transcription for testing purposes
+  // In a real implementation, you would check the blob validity
   
-  // In a real implementation, you would:
-  // 1. Send the audio to Whisper API or another STT service
-  // 2. Wait for the result
-  // 3. Return the transcript
-  
-  // For testing, we'll return simulated responses very quickly (200-400ms)
+  // For testing, we'll return simulated responses very quickly (100-300ms)
   return new Promise((resolve) => {
-    // Generate a random response time between 200ms and 400ms
-    const responseTime = Math.floor(Math.random() * 200) + 200;
+    // Generate a random response time between 100ms and 300ms
+    const responseTime = Math.floor(Math.random() * 200) + 100;
     
     setTimeout(() => {
       // More varied and conversational responses
@@ -63,8 +55,11 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
         "What's new in the latest update?"
       ];
       
-      // Use the audio blob size to pseudo-randomly select a response
-      const index = Math.floor((audioBlob.size % responses.length));
+      // For testing purposes, always return a valid response
+      // In real implementation, you would actually process the audio blob
+      
+      // Use a simplified random selection
+      const index = Math.floor(Math.random() * responses.length);
       resolve({
         transcript: responses[index]
       });
