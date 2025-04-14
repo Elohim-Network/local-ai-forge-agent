@@ -1,7 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import env from "@/lib/config/environment";
 import { useEnv } from "@/lib/config/useEnv";
-import { toast } from "@/hooks/use-toast";
 
 // Define types for our system status
 export type ModelStatus = "active" | "downloading" | "available" | "not-installed" | "error";
@@ -57,7 +57,7 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     {
       id: "mistral-7b",
       name: "Mistral-7B-v0.2",
-      status: "available",
+      status: "active",
       size: "4.1GB",
       version: "0.2",
       port: envConfig.DEFAULT_MODEL_PORT
@@ -122,62 +122,19 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     setModules(prev => prev.filter(module => module.id !== moduleId));
   };
 
-  // Add a system check function that also checks model connection
-  const checkModelConnection = async (modelId: string) => {
-    if (modelId !== "mistral-7b" && modelId !== "llama-13b") {
-      return false;
-    }
-    
-    try {
-      // Try to connect to the local model
-      const endpoint = `http://localhost:${envConfig.DEFAULT_MODEL_PORT}/v1/models`;
-      
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        signal: AbortSignal.timeout(2000) // 2 second timeout
-      });
-      
-      return response.ok;
-    } catch (error) {
-      console.error("Error checking model connection:", error);
-      return false;
-    }
-  };
-
-  // Simulate checking system status with an actual connection check
+  // Simulate checking system status
   const checkSystem = async () => {
     setIsChecking(true);
     
-    // Try to connect to the active model
-    const activeModel = models.find(model => model.status === "active");
-    let isModelConnected = false;
+    // Simulate an API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    if (activeModel) {
-      isModelConnected = await checkModelConnection(activeModel.id);
-      
-      // Update model status based on connection
-      setModels(prevModels => 
-        prevModels.map(model => 
-          model.id === activeModel.id ? 
-            { ...model, status: isModelConnected ? "active" : "error", error: isModelConnected ? undefined : "Failed to connect" } : 
-            model
-        )
-      );
-    }
-    
+    // Update with "new" information (in a real app, this would be actual data)
     // For simulation, we'll just randomize some statuses
     setModels(prevModels => 
       prevModels.map(model => {
         if (model.id === "phi-3" && model.status === "downloading") {
-          const newProgress = Math.min(100, (model.progress || 0) + 15);
-          return { 
-            ...model, 
-            progress: newProgress,
-            status: newProgress >= 100 ? "available" : "downloading"
-          };
+          return { ...model, progress: Math.min(100, (model.progress || 0) + 15) };
         }
         return model;
       })
@@ -187,37 +144,15 @@ export const SystemStatusProvider = ({ children }: { children: ReactNode }) => {
     setLastChecked(new Date());
   };
 
-  // Activate a model with connection check
+  // Activate a model
   const activateModel = async (modelId: string) => {
-    const isConnected = await checkModelConnection(modelId);
-    
     setModels(prevModels => 
       prevModels.map(model => 
         model.id === modelId ? 
-          { 
-            ...model, 
-            status: isConnected ? "active" as ModelStatus : "error" as ModelStatus,
-            port: envConfig.DEFAULT_MODEL_PORT,
-            error: isConnected ? undefined : "Failed to connect to model" 
-          } : 
-          model.status === "active" ? 
-            { ...model, status: "available" as ModelStatus } : // Set previously active models to available
-            model
+          { ...model, status: "active" as ModelStatus, port: envConfig.DEFAULT_MODEL_PORT } : 
+          model
       )
     );
-    
-    if (!isConnected) {
-      toast({
-        title: "Connection Failed",
-        description: `Could not connect to ${modelId}. Please check that your local model server is running.`,
-        variant: "destructive"
-      });
-    } else {
-      toast({
-        title: "Model Activated",
-        description: `Successfully connected to ${modelId}.`,
-      });
-    }
   };
 
   // Download a model

@@ -2,9 +2,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, Monitor, Smartphone, Tablet, Mic, MicOff, Volume2 } from "lucide-react";
+import { Bot, Send, Monitor, Smartphone, Tablet, Mic, MicOff, Volume, Volume2 } from "lucide-react";
+import { useVoice } from "@/hooks/useVoice";
 import { toast } from "@/hooks/use-toast";
-import { startAudioRecording, sendAudioToServer } from "@/hooks/useVoiceUtils";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,17 +23,63 @@ export function WorkspacePreview() {
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const recordingCleanupRef = useRef<(() => void) | null>(null);
+  const [isThinking, setIsThinking] = useState(false);
+  const responseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Set up voice features with simpler configuration
+  const { 
+    isRecording, 
+    isSpeaking, 
+    transcript, 
+    isProcessing: isVoiceProcessing,
+    startRecording, 
+    stopRecording, 
+    speak 
+  } = useVoice({
+    enabled: true,
+    autoListen: false,
+    useServerTranscription: true,
+    transcriptionEndpoint: "/api/transcribe",
+    onSpeechResult: (text) => {
+      handleTranscription(text);
+    },
+    volume: 0.8,
+    continuousListening: false
+  });
+
   // Auto-scroll to bottom of messages
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Initial greeting on load
+  useEffect(() => {
+    // Slight delay to ensure the voice is ready
+    const timer = setTimeout(() => {
+      console.log("Attempting to speak welcome message");
+      speak("Welcome to Elohim. How may I assist you today?");
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [speak]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleTranscription = (text: string) => {
+    if (text.trim()) {
+      console.log("Received transcription:", text);
+      addMessage("user", text);
+      generateResponse(text);
+    } else {
+      console.warn("Received empty transcription");
+      toast({
+        title: "Empty Transcription",
+        description: "No speech was detected. Please try speaking again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleInputSubmit = (e: React.FormEvent) => {
@@ -54,19 +100,28 @@ export function WorkspacePreview() {
 
   const generateResponse = async (userMessage: string) => {
     setIsProcessing(true);
+    setIsThinking(true);
     
-    // Generate a contextual response quickly
-    setTimeout(() => {
-      let response = getContextualResponse(userMessage);
-      addMessage("assistant", response);
+    // Clear any existing timeout
+    if (responseTimeoutRef.current) {
+      clearTimeout(responseTimeoutRef.current);
+    }
+    
+    // Generate quick response after short delay for better UX
+    responseTimeoutRef.current = setTimeout(() => {
+      setIsThinking(false);
       
-      // Speak the response if needed
-      if ('speechSynthesis' in window) {
-        speakMessage(response);
-      }
+      // Generate a contextual response immediately
+      let quickResponse = getContextualResponse(userMessage);
+      
+      addMessage("assistant", quickResponse);
+      
+      // Speak the response
+      console.log("Speaking response:", quickResponse);
+      speak(quickResponse);
       
       setIsProcessing(false);
-    }, 500);
+    }, 800);
   };
   
   const getContextualResponse = (userMessage: string): string => {
@@ -86,127 +141,21 @@ export function WorkspacePreview() {
     }
   };
 
-  const startRecording = async () => {
-    try {
-      setIsRecording(true);
-      
-      const { stopRecording, recordingPromise } = await startAudioRecording();
-      recordingCleanupRef.current = stopRecording;
-      
-      toast({
-        title: "Recording started",
-        description: "Speak now...",
-      });
-      
-      // Automatically stop recording after 10 seconds to prevent hanging
-      const recordingTimeout = setTimeout(() => {
-        if (isRecording) {
-          stopRecording();
-        }
-      }, 10000);
-      
-      try {
-        const audioBlob = await recordingPromise;
-        
-        if (audioBlob.size > 0) {
-          setIsProcessing(true);
-          
-          try {
-            const transcription = await sendAudioToServer(audioBlob, "/api/transcribe");
-            
-            if (transcription && transcription.transcript) {
-              const transcript = transcription.transcript;
-              
-              // Add the transcribed message
-              addMessage("user", transcript);
-              
-              // Generate a response
-              generateResponse(transcript);
-            }
-          } catch (error) {
-            console.error("Transcription error:", error);
-            toast({
-              title: "Transcription Error",
-              description: "Failed to transcribe audio",
-              variant: "destructive"
-            });
-          } finally {
-            setIsProcessing(false);
-          }
-        } else {
-          toast({
-            title: "Recording Error",
-            description: "No audio was captured. Please try again.",
-            variant: "destructive"
-          });
-        }
-      } catch (error) {
-        console.error("Recording error:", error);
-        toast({
-          title: "Recording Error",
-          description: error.message || "Failed to process recording",
-          variant: "destructive"
-        });
-      } finally {
-        clearTimeout(recordingTimeout);
-        setIsRecording(false);
-        recordingCleanupRef.current = null;
-      }
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      setIsRecording(false);
-      toast({
-        title: "Microphone Error",
-        description: "Failed to access microphone. Please check permissions.",
-        variant: "destructive"
-      });
+  const toggleRecording = () => {
+    if (isRecording) {
+      console.log("Stopping recording");
+      stopRecording();
+    } else {
+      console.log("Starting recording");
+      startRecording();
     }
   };
 
-  const stopRecording = () => {
-    if (recordingCleanupRef.current) {
-      recordingCleanupRef.current();
-      recordingCleanupRef.current = null;
-    }
-    setIsRecording(false);
-  };
-  
-  const speakMessage = (text: string) => {
+  const playMessage = (message: Message) => {
+    console.log("Playing message:", message.content);
     if ('speechSynthesis' in window) {
-      setIsSpeaking(true);
-      
-      // Cancel any existing speech
-      window.speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      // Get available voices
-      const voices = window.speechSynthesis.getVoices();
-      
-      // Select a good voice if available
-      if (voices.length > 0) {
-        const preferredVoices = voices.filter(voice => 
-          voice.name.includes('Google') || 
-          voice.name.includes('Natural') || 
-          voice.name.includes('Premium')
-        );
-        
-        if (preferredVoices.length > 0) {
-          utterance.voice = preferredVoices[0];
-        } else {
-          utterance.voice = voices[0];
-        }
-      }
-      
-      utterance.onend = () => {
-        setIsSpeaking(false);
-      };
-      
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-      };
-      
-      window.speechSynthesis.speak(utterance);
+      window.speechSynthesis.cancel(); // Stop any ongoing speech
+      speak(message.content);
     }
   };
 
@@ -291,7 +240,7 @@ export function WorkspacePreview() {
                             ? 'text-muted-foreground hover:text-foreground' 
                             : 'text-primary-foreground/70 hover:text-primary-foreground'
                         }`}
-                        onClick={() => speakMessage(message.content)}
+                        onClick={() => playMessage(message)}
                         title="Listen to message"
                       >
                         <Volume2 size={14} />
@@ -309,7 +258,7 @@ export function WorkspacePreview() {
                 </div>
               ))}
               
-              {isProcessing && (
+              {isThinking && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/20">
                     <Bot size={16} className="text-primary" />
@@ -324,13 +273,15 @@ export function WorkspacePreview() {
                 </div>
               )}
               
-              {isRecording && (
+              {(isRecording || isVoiceProcessing) && (
                 <div className="flex gap-3 ml-auto flex-row-reverse">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-red-500/20 animate-pulse">
                     <Mic size={16} className="text-red-500" />
                   </div>
                   <div className="bg-red-500/10 text-muted-foreground p-3 rounded-lg rounded-tr-none max-w-[85%] border border-red-500/20">
-                    <p className="text-sm">Recording...</p>
+                    <p className="text-sm">
+                      {isVoiceProcessing ? "Processing..." : isRecording ? (transcript ? `Recording: ${transcript}` : "Recording...") : ""}
+                    </p>
                   </div>
                 </div>
               )}
@@ -345,9 +296,9 @@ export function WorkspacePreview() {
               placeholder="Type your message..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              disabled={isRecording || isProcessing}
+              disabled={isRecording}
             />
-            <Button type="submit" size="sm" className="h-8 w-8 p-0 bg-primary/90 hover:bg-primary text-primary-foreground" title="Send message" disabled={isRecording || isProcessing}>
+            <Button type="submit" size="sm" className="h-8 w-8 p-0 bg-primary/90 hover:bg-primary text-primary-foreground" title="Send message">
               <Send size={14} />
               <span className="sr-only">Send</span>
             </Button>
@@ -356,12 +307,27 @@ export function WorkspacePreview() {
               size="sm" 
               variant={isRecording ? "destructive" : "ghost"} 
               className={`h-8 w-8 p-0 ${isRecording ? 'animate-pulse' : ''}`}
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isProcessing}
+              onClick={toggleRecording}
               title={isRecording ? "Stop recording" : "Start recording"}
             >
               {isRecording ? <MicOff size={14} /> : <Mic size={14} className="text-primary" />}
               <span className="sr-only">{isRecording ? "Stop recording" : "Start recording"}</span>
+            </Button>
+            <Button 
+              type="button"
+              size="sm" 
+              variant="ghost" 
+              className="h-8 w-8 p-0"
+              onClick={() => {
+                const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+                if (lastAssistantMessage) {
+                  speak(lastAssistantMessage.content);
+                }
+              }}
+              title="Play last message"
+            >
+              <Volume size={14} className="text-primary" />
+              <span className="sr-only">Play last message</span>
             </Button>
           </form>
         </div>

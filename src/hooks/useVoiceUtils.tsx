@@ -1,4 +1,3 @@
-
 // This file contains utility functions for voice recording and processing
 
 export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) => {
@@ -59,6 +58,8 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       console.log("Data available from recorder:", event.data.size);
       if (event.data && event.data.size > 0) {
         audioChunks.push(event.data);
+      } else {
+        console.warn("Received empty audio data chunk");
       }
     });
     
@@ -104,15 +105,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
     
     // Start recording with longer time slices to ensure we get enough data
     console.log("Starting audio recording...");
-    mediaRecorder.start(500); // Use longer time slices (500ms) to ensure data capture
-    
-    // Request data explicitly after a short delay to ensure we get at least one chunk
-    setTimeout(() => {
-      if (mediaRecorder.state === 'recording') {
-        console.log("Requesting data explicitly");
-        mediaRecorder.requestData();
-      }
-    }, 1000);
+    mediaRecorder.start(200); // Use longer time slices (200ms)
     
     return {
       mediaRecorder,
@@ -120,18 +113,12 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       stopRecording: () => {
         if (mediaRecorder.state !== 'inactive') {
           console.log("Stopping recording...");
+          mediaRecorder.stop();
           
           // Request data one final time when stopping
-          if (mediaRecorder.state === 'recording') {
+          if (mediaRecorder.state !== 'inactive') {
             mediaRecorder.requestData();
           }
-          
-          // Small delay before actually stopping to ensure data is captured
-          setTimeout(() => {
-            if (mediaRecorder.state !== 'inactive') {
-              mediaRecorder.stop();
-            }
-          }, 250);
         } else {
           console.log("Recording already stopped");
         }
@@ -144,7 +131,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
               console.log(`Force stopping track ${track.id}`);
             }
           });
-        }, 1000);
+        }, 500);
       }
     };
   } catch (error) {
@@ -200,4 +187,41 @@ export const sendAudioToServer = async (audioBlob: Blob, endpoint: string) => {
     console.error("Error sending audio to server:", error);
     throw error;
   }
+};
+
+export const detectSilence = (analyser: AnalyserNode, minDecibels = -65, callback: (isSilent: boolean) => void) => {
+  const bufferLength = analyser.fftSize;
+  const dataArray = new Uint8Array(bufferLength);
+  let silenceTimer: number | null = null;
+  let isSilent = false;
+  
+  const checkSilence = () => {
+    analyser.getByteTimeDomainData(dataArray);
+    
+    let sum = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      const value = (dataArray[i] - 128) / 128;
+      sum += value * value;
+    }
+    
+    const rms = Math.sqrt(sum / bufferLength);
+    const db = 20 * Math.log10(rms);
+    
+    const newIsSilent = db < minDecibels;
+    
+    if (newIsSilent !== isSilent) {
+      isSilent = newIsSilent;
+      callback(isSilent);
+    }
+    
+    silenceTimer = window.requestAnimationFrame(checkSilence);
+  };
+  
+  checkSilence();
+  
+  return () => {
+    if (silenceTimer !== null) {
+      window.cancelAnimationFrame(silenceTimer);
+    }
+  };
 };
