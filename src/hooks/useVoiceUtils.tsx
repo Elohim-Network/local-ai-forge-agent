@@ -19,10 +19,29 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       } 
     });
     
+    // Find the best supported mime type for better compatibility
+    const supportedMimeTypes = [
+      'audio/webm',
+      'audio/mp4', 
+      'audio/wav', 
+      'audio/ogg'
+    ];
+    
+    let bestMimeType = options.mimeType;
+    
+    // Try to find a supported mime type
+    for (const mimeType of supportedMimeTypes) {
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        bestMimeType = mimeType;
+        console.log(`Using supported mime type: ${mimeType}`);
+        break;
+      }
+    }
+    
     // Create media recorder with supported options
     let mediaRecorder;
     try {
-      mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorder = new MediaRecorder(stream, { ...options, mimeType: bestMimeType });
     } catch (err) {
       console.warn("Failed to create MediaRecorder with specified options, trying default options");
       mediaRecorder = new MediaRecorder(stream);
@@ -61,7 +80,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
         }
         
         try {
-          const audioBlob = new Blob(audioChunks, { type: options.mimeType });
+          const audioBlob = new Blob(audioChunks, { type: bestMimeType });
           console.log("Audio blob created:", { size: audioBlob.size, type: audioBlob.type });
           
           if (audioBlob.size === 0) {
@@ -69,15 +88,42 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
             return;
           }
           
-          // Ensure we clean up resources properly
-          stream.getTracks().forEach(track => {
-            track.stop();
-            console.log(`Track ${track.id} stopped and released`);
-          });
+          // Create a quick audio element to verify the blob
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
           
-          resolve(audioBlob);
+          audio.onloadedmetadata = () => {
+            console.log(`Verified audio duration: ${audio.duration}s`);
+            
+            // Only accept recordings longer than 0.5 seconds
+            if (audio.duration < 0.5) {
+              reject(new Error("Recording too short. Please speak for at least a second."));
+              return;
+            }
+            
+            // Release the URL object
+            URL.revokeObjectURL(audioUrl);
+            
+            // Ensure we clean up resources properly
+            stream.getTracks().forEach(track => {
+              track.stop();
+              console.log(`Track ${track.id} stopped and released`);
+            });
+            
+            resolve(audioBlob);
+          };
+          
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl);
+            reject(new Error("Error verifying audio recording"));
+          };
+          
+          // Load the audio metadata
+          audio.load();
         } catch (error) {
           console.error("Error creating audio blob:", error);
+          // Ensure we clean up resources properly even on error
+          stream.getTracks().forEach(track => track.stop());
           reject(error);
         }
       });
@@ -88,7 +134,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.requestData();
       }
-    }, 1000);
+    }, 500); // Request data more frequently (every 500ms)
     
     console.log("Starting audio recording...");
     mediaRecorder.start(100); // Request data every 100ms
@@ -104,6 +150,16 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
         } else {
           console.log("Recording already stopped");
         }
+        
+        // Ensure tracks are stopped even if something goes wrong
+        setTimeout(() => {
+          stream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+              track.stop();
+              console.log(`Force stopping track ${track.id}`);
+            }
+          });
+        }, 1000);
       }
     };
   } catch (error) {

@@ -34,9 +34,13 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
   // 3. Return the transcript
   
   // For testing, we'll return more realistic simulated responses based on audio length
+  // and make them MUCH faster (200-400ms) to improve UX
   return new Promise((resolve) => {
+    // Generate a random response time between 200ms and 400ms for a snappy experience
+    const responseTime = Math.floor(Math.random() * 200) + 200;
+    
     setTimeout(() => {
-      // Generate a more realistic response based on audio size
+      // More varied and conversational responses
       const responses = [
         "Hello, how can I help you today?",
         "I'm looking for information about your AI agent capabilities.",
@@ -44,7 +48,20 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
         "I'd like to create a new document using voice commands.",
         "What features are available in the current version?",
         "Could you show me how to use the podcast creator tool?",
-        "Tell me about the ebook generation capabilities."
+        "Tell me about the ebook generation capabilities.",
+        "How do I connect this to my existing data sources?",
+        "What kind of analytics can your system provide?",
+        "Is there a way to customize the voice responses?",
+        "Can you help me troubleshoot an issue with my microphone?",
+        "I need assistance with setting up a new project.",
+        "Are there any tutorials available for beginners?",
+        "Do you integrate with other tools like Zapier or Slack?",
+        "What's the difference between the free and premium versions?",
+        "Can I export data from your platform in different formats?",
+        "How secure is the data processing in this application?",
+        "Is there an API available for developers?",
+        "Does this work well on mobile devices?",
+        "What's new in the latest update?"
       ];
       
       // Use the audio blob size to pseudo-randomly select a response
@@ -53,7 +70,7 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
       resolve({
         transcript: responses[index]
       });
-    }, 800); // Simulate realistic processing time
+    }, responseTime);
   });
 }
 

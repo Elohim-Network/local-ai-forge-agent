@@ -24,6 +24,8 @@ export function WorkspacePreview() {
   const [recordingAttempted, setRecordingAttempted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const responseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Set up voice features
   const { 
@@ -100,32 +102,46 @@ export function WorkspacePreview() {
 
   const generateResponse = async (userMessage: string) => {
     setIsProcessing(true);
+    setIsThinking(true);
     
-    // Simulate AI thinking time
-    setTimeout(() => {
-      // Generate a contextual response
-      let response = "I'm analyzing your request...";
+    // Clear any existing timeout
+    if (responseTimeoutRef.current) {
+      clearTimeout(responseTimeoutRef.current);
+    }
+    
+    // Speed optimization: Show an initial quick response first (after a short delay)
+    responseTimeoutRef.current = setTimeout(() => {
+      setIsThinking(false);
       
-      if (userMessage.toLowerCase().includes("hello") || userMessage.toLowerCase().includes("hi")) {
-        response = "Hello! How can I assist you today?";
-      } else if (userMessage.toLowerCase().includes("help")) {
-        response = "I'd be happy to help. What specific assistance do you need?";
-      } else if (userMessage.toLowerCase().includes("ebook") || userMessage.toLowerCase().includes("book")) {
-        response = "I can help you generate an ebook. Would you like me to explain how the ebook generator works?";
-      } else if (userMessage.toLowerCase().includes("podcast")) {
-        response = "The podcast creator allows you to convert text to engaging audio content. Would you like me to show you how it works?";
-      } else if (userMessage.toLowerCase().includes("voice")) {
-        response = "Voice recognition is active. You can speak to me and I'll transcribe and respond to your requests.";
-      } else if (userMessage.toLowerCase().includes("capabilities") || userMessage.toLowerCase().includes("features")) {
-        response = "I can assist with text generation, voice interaction, ebook creation, podcast production, and various business automation tools.";
-      } else {
-        response = "I understand your request about \"" + userMessage.substring(0, 30) + (userMessage.length > 30 ? "..." : "") + "\". How would you like me to assist with this?";
-      }
+      // Generate a contextual response immediately without waiting
+      let quickResponse = getContextualResponse(userMessage);
       
-      addMessage("assistant", response);
-      speak(response); // Speak the response
+      addMessage("assistant", quickResponse);
+      speak(quickResponse);
       setIsProcessing(false);
-    }, 1500);
+    }, 800); // Reduced thinking time to 800ms for better UX
+  };
+  
+  const getContextualResponse = (userMessage: string): string => {
+    // This function quickly generates contextual responses based on the input
+    // without calling external APIs for better responsiveness
+    const message = userMessage.toLowerCase();
+    
+    if (message.includes("hello") || message.includes("hi")) {
+      return "Hello! How can I assist you today?";
+    } else if (message.includes("help")) {
+      return "I'd be happy to help. What specific assistance do you need?";
+    } else if (message.includes("ebook") || message.includes("book")) {
+      return "I can help you generate an ebook. Would you like me to explain how the ebook generator works?";
+    } else if (message.includes("podcast")) {
+      return "The podcast creator allows you to convert text to engaging audio content. Would you like me to show you how it works?";
+    } else if (message.includes("voice")) {
+      return "Voice recognition is active. You can speak to me and I'll transcribe and respond to your requests.";
+    } else if (message.includes("capabilities") || message.includes("features")) {
+      return "I can assist with text generation, voice interaction, ebook creation, podcast production, and various business automation tools.";
+    } else {
+      return "I understand your request about \"" + userMessage.substring(0, 30) + (userMessage.length > 30 ? "..." : "") + "\". How would you like me to assist with this?";
+    }
   };
 
   const toggleRecording = () => {
@@ -145,6 +161,13 @@ export function WorkspacePreview() {
           stopRecording();
         }
       }, 10000);
+    }
+  };
+
+  const playMessage = (message: Message) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); // Stop any ongoing speech
+      speak(message.content);
     }
   };
 
@@ -221,18 +244,33 @@ export function WorkspacePreview() {
                       : 'bg-primary text-primary-foreground rounded-tr-none max-w-[85%]'
                   }`}>
                     <p className="text-sm">{message.content}</p>
-                    <div className={`text-xs mt-1 opacity-70 text-right ${
-                      message.role === 'assistant' 
-                        ? 'text-muted-foreground' 
-                        : 'text-primary-foreground/70'
-                    }`}>
-                      {message.timestamp}
+                    <div className="flex justify-between items-center mt-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`p-0 h-6 w-6 ${
+                          message.role === 'assistant' 
+                            ? 'text-muted-foreground hover:text-foreground' 
+                            : 'text-primary-foreground/70 hover:text-primary-foreground'
+                        }`}
+                        onClick={() => playMessage(message)}
+                      >
+                        <Volume size={14} />
+                        <span className="sr-only">Listen</span>
+                      </Button>
+                      <div className={`text-xs opacity-70 ${
+                        message.role === 'assistant' 
+                          ? 'text-muted-foreground' 
+                          : 'text-primary-foreground/70'
+                      }`}>
+                        {message.timestamp}
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
               
-              {isProcessing && (
+              {isThinking && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/20">
                     <Bot size={16} className="text-primary" />
