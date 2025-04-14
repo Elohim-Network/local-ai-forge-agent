@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -114,49 +113,26 @@ const DEFAULT_SETTINGS: ChatSettings = {
 const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("mistral-7b");
+  const [selectedModel, setSelectedModel] = useState("mistral");
 
   const sendToLocalModel = async (message: string, model: string) => {
-    let endpoint = "";
-    let requestBody: any = {};
-    
-    if (model === "mistral-7b") {
-      endpoint = "http://localhost:11434/v1/chat/completions";
-      requestBody = {
-        model: "mistral",
-        messages: [
-          {
-            role: "system",
-            content: "You are Elohim, a helpful AI assistant with enhanced capabilities."
-          },
-          ...messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          { role: "user", content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      };
-    } else if (model === "llama-13b") {
-      endpoint = "http://localhost:11434/v1/chat/completions";
-      requestBody = {
-        model: "llama2",
-        messages: [
-          {
-            role: "system",
-            content: "You are Elohim, a helpful AI assistant with enhanced capabilities."
-          },
-          ...messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          { role: "user", content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      };
-    }
+    let endpoint = "http://localhost:11434/v1/chat/completions";
+    let requestBody: any = {
+      model: "mistral",
+      messages: [
+        {
+          role: "system",
+          content: "You are Elohim, a helpful AI assistant with enhanced capabilities."
+        },
+        ...messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        { role: "user", content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 800
+    };
     
     try {
       const response = await fetch(endpoint, {
