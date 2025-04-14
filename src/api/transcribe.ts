@@ -24,22 +24,31 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
   // 2. Wait for the result
   // 3. Return the transcript
   
-  // For testing, we'll return a simulated response after a short delay
+  // For testing, we'll return more realistic simulated responses based on audio length
   return new Promise((resolve) => {
     setTimeout(() => {
+      // Generate a more realistic response based on audio size
+      const responses = [
+        "Hello, how can I help you today?",
+        "I'm looking for information about your AI agent capabilities.",
+        "Can you explain how voice recognition works in this application?",
+        "I'd like to create a new document using voice commands.",
+        "What features are available in the current version?",
+        "Could you show me how to use the podcast creator tool?",
+        "Tell me about the ebook generation capabilities."
+      ];
+      
+      // Use the audio blob size to pseudo-randomly select a response
+      // This makes testing feel more realistic
+      const index = Math.floor((audioBlob.size % responses.length));
       resolve({
-        transcript: "This is a simulated transcription. In a real implementation, this would be the text from your speech."
+        transcript: responses[index]
       });
-    }, 1000);
+    }, 800); // Simulate realistic processing time
   });
 }
 
-// To use this with the fetch API in the useVoice hook:
-// 1. Configure your server to expose an endpoint at /api/transcribe
-// 2. The endpoint should accept a POST request with FormData containing an 'audio' field
-// 3. Process the audio and return a JSON response with a 'transcript' field
-
-// Example implementation with Express:
+// Example implementation with Express (for reference):
 /*
 import express from 'express';
 import multer from 'multer';
