@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,7 @@ const ChatPage = () => {
   const [inputValue, setInputValue] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState("");
+  const [selectedModel, setSelectedModel] = useState("mistral");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,11 +167,19 @@ const ChatPage = () => {
     }
   };
 
+  const handleSelectModel = (model: string) => {
+    setSelectedModel(model);
+    // Additional logic for model change if needed
+  };
+
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <Card className="h-[80vh] flex flex-col">
         <div className="p-4 border-b">
-          <ModelSelector onModelChange={() => {}} selectedModel="mistral" />
+          <ModelSelector 
+            selectedModel={selectedModel} 
+            onSelectModel={handleSelectModel} 
+          />
         </div>
         
         <ScrollArea className="flex-1 p-4">
