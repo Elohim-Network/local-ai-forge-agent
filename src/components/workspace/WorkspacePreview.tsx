@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, Monitor, Smartphone, Tablet, Mic, MicOff, Volume, Volume2 } from "lucide-react";
+import { Bot, Send, Zap, Shield, Monitor, Smartphone, Tablet, Mic, MicOff, Volume, VolumeX } from "lucide-react";
 import { useVoice } from "@/hooks/useVoice";
 import { toast } from "@/hooks/use-toast";
 
@@ -21,13 +21,13 @@ export function WorkspacePreview() {
     }
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [recordingAttempted, setRecordingAttempted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isThinking, setIsThinking] = useState(false);
-  const responseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Set up voice features with simpler configuration
+  // Set up voice features
   const { 
+    isListening, 
     isRecording, 
     isSpeaking, 
     transcript, 
@@ -100,62 +100,51 @@ export function WorkspacePreview() {
 
   const generateResponse = async (userMessage: string) => {
     setIsProcessing(true);
-    setIsThinking(true);
     
-    // Clear any existing timeout
-    if (responseTimeoutRef.current) {
-      clearTimeout(responseTimeoutRef.current);
-    }
-    
-    // Generate quick response after short delay for better UX
-    responseTimeoutRef.current = setTimeout(() => {
-      setIsThinking(false);
+    // Simulate AI thinking time
+    setTimeout(() => {
+      // Generate a contextual response
+      let response = "I'm analyzing your request...";
       
-      // Generate a contextual response immediately
-      let quickResponse = getContextualResponse(userMessage);
+      if (userMessage.toLowerCase().includes("hello") || userMessage.toLowerCase().includes("hi")) {
+        response = "Hello! How can I assist you today?";
+      } else if (userMessage.toLowerCase().includes("help")) {
+        response = "I'd be happy to help. What specific assistance do you need?";
+      } else if (userMessage.toLowerCase().includes("ebook") || userMessage.toLowerCase().includes("book")) {
+        response = "I can help you generate an ebook. Would you like me to explain how the ebook generator works?";
+      } else if (userMessage.toLowerCase().includes("podcast")) {
+        response = "The podcast creator allows you to convert text to engaging audio content. Would you like me to show you how it works?";
+      } else if (userMessage.toLowerCase().includes("voice")) {
+        response = "Voice recognition is active. You can speak to me and I'll transcribe and respond to your requests.";
+      } else if (userMessage.toLowerCase().includes("capabilities") || userMessage.toLowerCase().includes("features")) {
+        response = "I can assist with text generation, voice interaction, ebook creation, podcast production, and various business automation tools.";
+      } else {
+        response = "I understand your request about \"" + userMessage.substring(0, 30) + (userMessage.length > 30 ? "..." : "") + "\". How would you like me to assist with this?";
+      }
       
-      addMessage("assistant", quickResponse);
-      
-      // Speak the response
-      console.log("Speaking response:", quickResponse);
-      speak(quickResponse);
-      
+      addMessage("assistant", response);
+      speak(response); // Speak the response
       setIsProcessing(false);
-    }, 800);
-  };
-  
-  const getContextualResponse = (userMessage: string): string => {
-    // Quick response generation based on input
-    const message = userMessage.toLowerCase();
-    
-    if (message.includes("hello") || message.includes("hi")) {
-      return "Hello! How can I assist you today?";
-    } else if (message.includes("help")) {
-      return "I'd be happy to help. What specific assistance do you need?";
-    } else if (message.includes("voice")) {
-      return "Voice recognition is active. You can speak to me and I'll transcribe and respond to your requests.";
-    } else if (message.includes("capabilities") || message.includes("features")) {
-      return "I can assist with text generation, voice interaction, and provide various responses to your queries.";
-    } else {
-      return "I understand your request about \"" + userMessage.substring(0, 30) + (userMessage.length > 30 ? "..." : "") + "\". How would you like me to assist with this?";
-    }
+    }, 1500);
   };
 
   const toggleRecording = () => {
+    setRecordingAttempted(true);
+    
     if (isRecording) {
       console.log("Stopping recording");
       stopRecording();
     } else {
       console.log("Starting recording");
       startRecording();
-    }
-  };
-
-  const playMessage = (message: Message) => {
-    console.log("Playing message:", message.content);
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop any ongoing speech
-      speak(message.content);
+      
+      // Set a safety timeout in case recording doesn't stop automatically
+      setTimeout(() => {
+        if (isRecording) {
+          console.log("Safety timeout: forcing recording to stop");
+          stopRecording();
+        }
+      }, 10000);
     }
   };
 
@@ -189,6 +178,7 @@ export function WorkspacePreview() {
       <div className="bg-background/50 rounded-lg border border-primary/20 h-[calc(100%-3rem)] p-4 backdrop-blur-sm flex items-center justify-center overflow-hidden shadow-lg">
         <div className="w-full max-w-sm h-[520px] bg-card rounded-lg overflow-hidden border border-primary/30 shadow-[0_0_15px_rgba(0,179,255,0.1)] transform perspective-[1000px] rotate-y-[-1deg] rotate-x-[1deg]">
           <div className="h-12 border-b border-border/30 flex items-center px-4 bg-gradient-to-r from-card to-background">
+            <Shield className="w-4 h-4 text-primary mr-2" />
             <span className="text-sm font-medium">ELOHIM</span>
             <span className="text-xs ml-2 text-muted-foreground font-mono">v1.0.3</span>
             <div className="ml-auto flex gap-1">
@@ -231,34 +221,18 @@ export function WorkspacePreview() {
                       : 'bg-primary text-primary-foreground rounded-tr-none max-w-[85%]'
                   }`}>
                     <p className="text-sm">{message.content}</p>
-                    <div className="flex justify-between items-center mt-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={`p-0 h-6 w-6 ${
-                          message.role === 'assistant' 
-                            ? 'text-muted-foreground hover:text-foreground' 
-                            : 'text-primary-foreground/70 hover:text-primary-foreground'
-                        }`}
-                        onClick={() => playMessage(message)}
-                        title="Listen to message"
-                      >
-                        <Volume2 size={14} />
-                        <span className="sr-only">Listen</span>
-                      </Button>
-                      <div className={`text-xs opacity-70 ${
-                        message.role === 'assistant' 
-                          ? 'text-muted-foreground' 
-                          : 'text-primary-foreground/70'
-                      }`}>
-                        {message.timestamp}
-                      </div>
+                    <div className={`text-xs mt-1 opacity-70 text-right ${
+                      message.role === 'assistant' 
+                        ? 'text-muted-foreground' 
+                        : 'text-primary-foreground/70'
+                    }`}>
+                      {message.timestamp}
                     </div>
                   </div>
                 </div>
               ))}
               
-              {isThinking && (
+              {isProcessing && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/20">
                     <Bot size={16} className="text-primary" />
@@ -286,6 +260,21 @@ export function WorkspacePreview() {
                 </div>
               )}
               
+              {recordingAttempted && !isRecording && !transcript && messages.length <= 1 && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
+                  <p className="flex items-center gap-1.5">
+                    <Mic size={16} className="text-amber-500" />
+                    <span className="text-amber-600 font-medium">Microphone Tips:</span>
+                  </p>
+                  <ul className="mt-2 space-y-1 pl-5 list-disc text-muted-foreground">
+                    <li>Check that your browser has microphone permissions</li>
+                    <li>Speak clearly into your microphone</li>
+                    <li>Try using Chrome or Edge for best compatibility</li>
+                    <li>Click and hold the mic button while speaking</li>
+                  </ul>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -298,9 +287,8 @@ export function WorkspacePreview() {
               onChange={(e) => setInputValue(e.target.value)}
               disabled={isRecording}
             />
-            <Button type="submit" size="sm" className="h-8 w-8 p-0 bg-primary/90 hover:bg-primary text-primary-foreground" title="Send message">
+            <Button type="submit" size="sm" className="h-8 w-8 p-0 bg-primary/90 hover:bg-primary text-primary-foreground">
               <Send size={14} />
-              <span className="sr-only">Send</span>
             </Button>
             <Button 
               type="button"
@@ -308,10 +296,8 @@ export function WorkspacePreview() {
               variant={isRecording ? "destructive" : "ghost"} 
               className={`h-8 w-8 p-0 ${isRecording ? 'animate-pulse' : ''}`}
               onClick={toggleRecording}
-              title={isRecording ? "Stop recording" : "Start recording"}
             >
               {isRecording ? <MicOff size={14} /> : <Mic size={14} className="text-primary" />}
-              <span className="sr-only">{isRecording ? "Stop recording" : "Start recording"}</span>
             </Button>
             <Button 
               type="button"
@@ -324,10 +310,8 @@ export function WorkspacePreview() {
                   speak(lastAssistantMessage.content);
                 }
               }}
-              title="Play last message"
             >
-              <Volume size={14} className="text-primary" />
-              <span className="sr-only">Play last message</span>
+              {isSpeaking ? <VolumeX size={14} className="text-primary" /> : <Volume size={14} className="text-primary" />}
             </Button>
           </form>
         </div>

@@ -33,41 +33,63 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
   // 2. Wait for the result
   // 3. Return the transcript
   
-  // For testing, we'll return simulated responses very quickly (200-400ms)
+  // For testing, we'll return more realistic simulated responses based on audio length
   return new Promise((resolve) => {
-    // Generate a random response time between 200ms and 400ms
-    const responseTime = Math.floor(Math.random() * 200) + 200;
-    
     setTimeout(() => {
-      // More varied and conversational responses
+      // Generate a more realistic response based on audio size
       const responses = [
         "Hello, how can I help you today?",
-        "I'm looking for information about your AI assistant.",
-        "Can you explain how voice recognition works here?",
-        "I'd like to create a new project.",
-        "What features are available?",
-        "Could you show me how to use the voice chat?",
-        "Tell me about the voice options.",
-        "How do I connect my own voice model?",
-        "What kind of AI models do you support?",
-        "Is there a way to customize the voice responses?",
-        "Can you help me troubleshoot the microphone?",
-        "I need assistance with voice recording.",
-        "Are there any voice customization options?",
-        "How do I upload my own voice sample?",
-        "What's the difference between the voice models?",
-        "Can I export my conversations?",
-        "How secure is the voice processing?",
-        "Is there an API available?",
-        "Does this work on mobile devices?",
-        "What's new in the latest update?"
+        "I'm looking for information about your AI agent capabilities.",
+        "Can you explain how voice recognition works in this application?",
+        "I'd like to create a new document using voice commands.",
+        "What features are available in the current version?",
+        "Could you show me how to use the podcast creator tool?",
+        "Tell me about the ebook generation capabilities."
       ];
       
       // Use the audio blob size to pseudo-randomly select a response
+      // This makes testing feel more realistic
       const index = Math.floor((audioBlob.size % responses.length));
       resolve({
         transcript: responses[index]
       });
-    }, responseTime);
+    }, 800); // Simulate realistic processing time
   });
 }
+
+// Example implementation with Express (for reference):
+/*
+import express from 'express';
+import multer from 'multer';
+import { Configuration, OpenAIApi } from 'openai';
+
+const app = express();
+const upload = multer();
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+    
+    const transcription = await openai.createTranscription(
+      req.file.buffer, 
+      'whisper-1'
+    );
+    
+    return res.json({ transcript: transcription.data.text });
+  } catch (error) {
+    console.error('Error transcribing audio:', error);
+    return res.status(500).json({ error: 'Failed to transcribe audio' });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+*/

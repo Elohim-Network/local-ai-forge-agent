@@ -1,3 +1,4 @@
+
 // This file contains utility functions for voice recording and processing
 
 export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) => {
@@ -18,29 +19,10 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       } 
     });
     
-    // Find the best supported mime type for better compatibility
-    const supportedMimeTypes = [
-      'audio/webm',
-      'audio/mp4', 
-      'audio/wav', 
-      'audio/ogg'
-    ];
-    
-    let bestMimeType = options.mimeType;
-    
-    // Try to find a supported mime type
-    for (const mimeType of supportedMimeTypes) {
-      if (MediaRecorder.isTypeSupported(mimeType)) {
-        bestMimeType = mimeType;
-        console.log(`Using supported mime type: ${mimeType}`);
-        break;
-      }
-    }
-    
     // Create media recorder with supported options
     let mediaRecorder;
     try {
-      mediaRecorder = new MediaRecorder(stream, { ...options, mimeType: bestMimeType });
+      mediaRecorder = new MediaRecorder(stream, options);
     } catch (err) {
       console.warn("Failed to create MediaRecorder with specified options, trying default options");
       mediaRecorder = new MediaRecorder(stream);
@@ -79,7 +61,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
         }
         
         try {
-          const audioBlob = new Blob(audioChunks, { type: bestMimeType });
+          const audioBlob = new Blob(audioChunks, { type: options.mimeType });
           console.log("Audio blob created:", { size: audioBlob.size, type: audioBlob.type });
           
           if (audioBlob.size === 0) {
@@ -96,16 +78,20 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
           resolve(audioBlob);
         } catch (error) {
           console.error("Error creating audio blob:", error);
-          // Ensure we clean up resources properly even on error
-          stream.getTracks().forEach(track => track.stop());
           reject(error);
         }
       });
     });
     
-    // Start recording with longer time slices to ensure we get enough data
+    // Make sure we request data frequently to avoid missing any audio
+    const dataInterval = setInterval(() => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.requestData();
+      }
+    }, 1000);
+    
     console.log("Starting audio recording...");
-    mediaRecorder.start(200); // Use longer time slices (200ms)
+    mediaRecorder.start(100); // Request data every 100ms
     
     return {
       mediaRecorder,
@@ -113,25 +99,11 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       stopRecording: () => {
         if (mediaRecorder.state !== 'inactive') {
           console.log("Stopping recording...");
+          clearInterval(dataInterval);
           mediaRecorder.stop();
-          
-          // Request data one final time when stopping
-          if (mediaRecorder.state !== 'inactive') {
-            mediaRecorder.requestData();
-          }
         } else {
           console.log("Recording already stopped");
         }
-        
-        // Ensure tracks are stopped even if something goes wrong
-        setTimeout(() => {
-          stream.getTracks().forEach(track => {
-            if (track.readyState === 'live') {
-              track.stop();
-              console.log(`Force stopping track ${track.id}`);
-            }
-          });
-        }, 500);
       }
     };
   } catch (error) {
