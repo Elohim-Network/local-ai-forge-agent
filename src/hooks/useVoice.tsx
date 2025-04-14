@@ -214,7 +214,7 @@ export function useVoice({
     } else if (!SpeechRecognitionAPI && !useServerTranscription) {
       toast({
         title: "Speech Recognition Not Supported",
-        description: "Your browser doesn't support speech recognition.",
+        description: "Your browser doesn't support speech recognition. Using server-based transcription instead.",
         variant: "destructive"
       });
     }
@@ -377,8 +377,8 @@ export function useVoice({
         
         if (audioBlob.size > 0) {
           try {
+            console.log("Sending audio to transcription endpoint:", transcriptionEndpoint);
             const result = await sendAudioToServer(audioBlob, transcriptionEndpoint);
-            setIsProcessing(false);
             
             console.log("Transcription result:", result);
             
@@ -395,13 +395,14 @@ export function useVoice({
             }
           } catch (error) {
             console.error("Error transcribing audio:", error);
-            setIsProcessing(false);
             
             toast({
               title: "Transcription Error",
               description: "Failed to transcribe audio. Please try again.",
               variant: "destructive"
             });
+          } finally {
+            setIsProcessing(false);
           }
         } else {
           console.warn("Audio blob is empty");

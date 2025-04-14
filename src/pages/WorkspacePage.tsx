@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { 
   ResizableHandle, 
   ResizablePanel, 
@@ -11,23 +11,51 @@ import { WorkspaceCanvas } from "@/components/workspace/WorkspaceCanvas";
 import { WorkspaceCodePanel } from "@/components/workspace/WorkspaceCodePanel";
 import { WorkspacePreview } from "@/components/workspace/WorkspacePreview";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
+import { Mic, Volume2 } from "lucide-react";
 import { testVoiceRecording } from "@/helpers/transcriptionTester";
 import { toast } from "@/hooks/use-toast";
 
 const WorkspacePage = () => {
   const [showPreview, setShowPreview] = useState(true);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResults, setTestResults] = useState<string | null>(null);
+  
   // Use refs to maintain stable references to functions
   const testVoiceRef = useRef<() => void>(() => {
     console.log("Testing voice recording functionality");
+    setIsTesting(true);
+    setTestResults(null);
+    
     toast({
       title: "Voice Test",
       description: "Testing microphone access and audio recording..."
     });
-    testVoiceRecording();
+    
+    // Run the test and handle results
+    testVoiceRecording()
+      .then(result => {
+        console.log("Voice test completed successfully:", result);
+        setTestResults("Voice recording test successful!");
+        toast({
+          title: "Voice Test Complete",
+          description: "Microphone and recording functionality working correctly."
+        });
+      })
+      .catch(error => {
+        console.error("Voice test failed:", error);
+        setTestResults(`Test failed: ${error.message}`);
+        toast({
+          title: "Voice Test Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      })
+      .finally(() => {
+        setIsTesting(false);
+      });
   });
   
-  // Make sure callbacks are stable across renders
+  // Make sure callbacks are stable across renders using useCallback
   const handleTestVoice = useCallback(() => {
     testVoiceRef.current();
   }, []);
@@ -42,11 +70,12 @@ const WorkspacePage = () => {
         <Button 
           variant="outline" 
           size="sm" 
-          className="gap-2" 
+          className={`gap-2 ${isTesting ? 'bg-primary/10 text-primary animate-pulse' : ''}`} 
           onClick={handleTestVoice}
+          disabled={isTesting}
         >
-          <Mic size={16} />
-          Test Voice
+          {isTesting ? <Volume2 size={16} /> : <Mic size={16} />}
+          {isTesting ? "Testing..." : "Test Voice"}
         </Button>
       </WorkspaceHeader>
       
@@ -61,6 +90,14 @@ const WorkspacePage = () => {
                 />
                 
                 <WorkspaceCanvas />
+                
+                {testResults && (
+                  <div className={`mt-4 p-4 rounded-md ${
+                    testResults.includes('failed') ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
+                  }`}>
+                    {testResults}
+                  </div>
+                )}
               </div>
             </ResizablePanel>
             <ResizableHandle />
