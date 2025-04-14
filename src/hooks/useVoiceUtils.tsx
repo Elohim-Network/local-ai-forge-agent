@@ -8,6 +8,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
     const audioChunks: Blob[] = [];
     
     mediaRecorder.addEventListener('dataavailable', event => {
+      console.log("Data available from recorder:", event.data.size);
       if (event.data.size > 0) {
         audioChunks.push(event.data);
       }
@@ -15,22 +16,24 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
     
     const recordingPromise = new Promise<Blob>((resolve) => {
       mediaRecorder.addEventListener('stop', () => {
+        console.log("Recording stopped, processing chunks...");
         const audioBlob = new Blob(audioChunks, { type: options.mimeType });
         // Clean up the stream tracks
         stream.getTracks().forEach(track => track.stop());
+        console.log("Audio blob created:", { size: audioBlob.size, type: audioBlob.type });
         resolve(audioBlob);
       });
     });
     
+    console.log("Starting audio recording...");
     mediaRecorder.start();
-    console.log("Audio recording started");
     
     return {
       mediaRecorder,
       recordingPromise,
       stopRecording: () => {
         if (mediaRecorder.state !== 'inactive') {
-          console.log("Stopping audio recording");
+          console.log("Stopping recording...");
           mediaRecorder.stop();
         }
       }

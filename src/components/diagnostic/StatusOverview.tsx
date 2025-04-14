@@ -1,4 +1,3 @@
-
 import React from "react";
 import { ModelInfo, ModuleStatus, ModelStatus } from "@/contexts/SystemStatusContext";
 import { Card } from "@/components/ui/card";
@@ -13,19 +12,6 @@ import { toast } from "@/hooks/use-toast";
 type ModelComponentItem = ComponentItem<ModelStatus>;
 type ModuleComponentItem = ComponentItem<string>;
 
-// Create aliased component types to avoid JSX parsing issues with generics
-const ModelStatusComponent = SystemComponentStatus as React.ComponentType<{
-  title: string;
-  items: ModelComponentItem[];
-  renderActions: (item: ModelComponentItem) => React.ReactNode;
-}>;
-
-const ModuleStatusComponent = SystemComponentStatus as React.ComponentType<{
-  title: string;
-  items: ModuleComponentItem[];
-  renderActions: (item: ModuleComponentItem) => React.ReactNode;
-}>;
-
 interface StatusOverviewProps {
   models: ModelInfo[];
   modules: ModuleStatus[];
@@ -37,6 +23,19 @@ interface StatusOverviewProps {
   chatIssuesDetected?: boolean;
   fixChatIssues?: () => void;
 }
+
+// Create aliased components to handle generics properly
+const ModelStatusComponent = SystemComponentStatus as React.ComponentType<{
+  title: string;
+  items: ModelComponentItem[];
+  renderActions: (model: ModelComponentItem) => React.ReactNode;
+}>;
+
+const ModuleStatusComponent = SystemComponentStatus as React.ComponentType<{
+  title: string;
+  items: ModuleComponentItem[];
+  renderActions: (module: ModuleComponentItem) => React.ReactNode;
+}>;
 
 export function StatusOverview({ 
   models, 
