@@ -11,7 +11,7 @@ import { WorkspaceCanvas } from "@/components/workspace/WorkspaceCanvas";
 import { WorkspaceCodePanel } from "@/components/workspace/WorkspaceCodePanel";
 import { WorkspacePreview } from "@/components/workspace/WorkspacePreview";
 import { Button } from "@/components/ui/button";
-import { Mic, Volume2 } from "lucide-react";
+import { Mic, Volume2, MicOff } from "lucide-react";
 import { testVoiceRecording } from "@/helpers/transcriptionTester";
 import { toast } from "@/hooks/use-toast";
 
@@ -38,7 +38,7 @@ const WorkspacePage = () => {
         setTestResults("Voice recording test successful!");
         toast({
           title: "Voice Test Complete",
-          description: "Microphone and recording functionality working correctly."
+          description: "Microphone and recording functionality working correctly. Check the preview panel to try voice chat."
         });
       })
       .catch(error => {
@@ -80,7 +80,7 @@ const WorkspacePage = () => {
       </WorkspaceHeader>
       
       <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={75}>
+        <ResizablePanel defaultSize={70}>
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={70}>
               <div className="p-6">
@@ -96,6 +96,9 @@ const WorkspacePage = () => {
                     testResults.includes('failed') ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
                   }`}>
                     {testResults}
+                    <p className="mt-2 text-sm opacity-80">
+                      {!testResults.includes('failed') && "Voice functionality is ready. Try using the chat in the preview panel!"}
+                    </p>
                   </div>
                 )}
               </div>
@@ -110,7 +113,7 @@ const WorkspacePage = () => {
         {showPreview && (
           <>
             <ResizableHandle />
-            <ResizablePanel defaultSize={25}>
+            <ResizablePanel defaultSize={30}>
               <WorkspacePreview />
             </ResizablePanel>
           </>

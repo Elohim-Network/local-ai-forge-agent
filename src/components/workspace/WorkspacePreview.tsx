@@ -1,9 +1,137 @@
 
+import { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Bot, Send, Zap, Shield, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Bot, Send, Zap, Shield, Monitor, Smartphone, Tablet, Mic, MicOff, Volume, VolumeX } from "lucide-react";
+import { useVoice } from "@/hooks/useVoice";
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
 
 export function WorkspacePreview() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "Welcome to Elohim. How may I assist you today?",
+      timestamp: formatTime(new Date())
+    }
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Set up voice features
+  const { 
+    isListening, 
+    isRecording, 
+    isSpeaking, 
+    transcript, 
+    startRecording, 
+    stopRecording, 
+    speak 
+  } = useVoice({
+    enabled: true,
+    autoListen: false,
+    useServerTranscription: true,
+    transcriptionEndpoint: "/api/transcribe",
+    onSpeechResult: (text) => {
+      handleTranscription(text);
+    },
+    volume: 0.8,
+    continuousListening: false
+  });
+
+  // Auto-scroll to bottom of messages
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Initial greeting on load
+  useEffect(() => {
+    // Slight delay to ensure the voice is ready
+    const timer = setTimeout(() => {
+      speak("Welcome to Elohim. How may I assist you today?");
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [speak]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleTranscription = (text: string) => {
+    if (text.trim()) {
+      addMessage("user", text);
+      generateResponse(text);
+    }
+  };
+
+  const handleInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      addMessage("user", inputValue);
+      generateResponse(inputValue);
+      setInputValue("");
+    }
+  };
+
+  const addMessage = (role: "user" | "assistant", content: string) => {
+    setMessages(prev => [
+      ...prev, 
+      { role, content, timestamp: formatTime(new Date()) }
+    ]);
+  };
+
+  const generateResponse = async (userMessage: string) => {
+    setIsProcessing(true);
+    
+    // Simulate AI thinking time
+    setTimeout(() => {
+      // Generate a contextual response
+      let response = "I'm analyzing your request...";
+      
+      if (userMessage.toLowerCase().includes("hello") || userMessage.toLowerCase().includes("hi")) {
+        response = "Hello! How can I assist you today?";
+      } else if (userMessage.toLowerCase().includes("help")) {
+        response = "I'd be happy to help. What specific assistance do you need?";
+      } else if (userMessage.toLowerCase().includes("ebook") || userMessage.toLowerCase().includes("book")) {
+        response = "I can help you generate an ebook. Would you like me to explain how the ebook generator works?";
+      } else if (userMessage.toLowerCase().includes("podcast")) {
+        response = "The podcast creator allows you to convert text to engaging audio content. Would you like me to show you how it works?";
+      } else if (userMessage.toLowerCase().includes("voice")) {
+        response = "Voice recognition is active. You can speak to me and I'll transcribe and respond to your requests.";
+      } else if (userMessage.toLowerCase().includes("capabilities") || userMessage.toLowerCase().includes("features")) {
+        response = "I can assist with text generation, voice interaction, ebook creation, podcast production, and various business automation tools.";
+      } else {
+        response = "I understand your request about \"" + userMessage.substring(0, 30) + (userMessage.length > 30 ? "..." : "") + "\". How would you like me to assist with this?";
+      }
+      
+      addMessage("assistant", response);
+      speak(response); // Speak the response
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  function formatTime(date: Date): string {
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  }
+
   return (
     <div className="h-full border-l border-border/30 p-4 bg-gradient-to-br from-background to-card">
       <div className="mb-4 flex items-center justify-between">
@@ -30,64 +158,121 @@ export function WorkspacePreview() {
             <span className="text-sm font-medium">ELOHIM</span>
             <span className="text-xs ml-2 text-muted-foreground font-mono">v1.0.3</span>
             <div className="ml-auto flex gap-1">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-              <div className="w-2 h-2 rounded-full bg-primary/70 animate-pulse delay-75"></div>
-              <div className="w-2 h-2 rounded-full bg-primary/40 animate-pulse delay-150"></div>
+              {isSpeaking && (
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full bg-green-400/70 animate-pulse delay-75"></div>
+                  <div className="w-2 h-2 rounded-full bg-green-400/40 animate-pulse delay-150"></div>
+                </div>
+              )}
+              {!isSpeaking && (
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full bg-primary/70 animate-pulse delay-75"></div>
+                  <div className="w-2 h-2 rounded-full bg-primary/40 animate-pulse delay-150"></div>
+                </div>
+              )}
             </div>
           </div>
           
           <div className="h-[calc(100%-6rem)] p-4 overflow-y-auto bg-card/80 space-y-4">
-            <div className="flex space-y-4 flex-col">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/20">
-                  <Bot size={16} className="text-primary" />
-                </div>
-                <div className="bg-muted/70 p-3 rounded-lg rounded-tl-none max-w-[85%] backdrop-blur-sm border border-border/20">
-                  <p className="text-sm">Welcome to Elohim. How may I assist you today?</p>
-                  <div className="text-xs mt-1 opacity-70 text-right text-muted-foreground">
-                    08:42
+            <div className="flex flex-col space-y-4">
+              {messages.map((message, index) => (
+                <div key={index} className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse ml-auto' : ''}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    message.role === 'assistant' 
+                      ? 'bg-primary/20' 
+                      : 'bg-primary/10'
+                  }`}>
+                    {message.role === 'assistant' ? (
+                      <Bot size={16} className="text-primary" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full bg-primary/80"></div>
+                    )}
+                  </div>
+                  
+                  <div className={`p-3 rounded-lg ${
+                    message.role === 'assistant' 
+                      ? 'bg-muted/70 rounded-tl-none max-w-[85%] backdrop-blur-sm border border-border/20' 
+                      : 'bg-primary text-primary-foreground rounded-tr-none max-w-[85%]'
+                  }`}>
+                    <p className="text-sm">{message.content}</p>
+                    <div className={`text-xs mt-1 opacity-70 text-right ${
+                      message.role === 'assistant' 
+                        ? 'text-muted-foreground' 
+                        : 'text-primary-foreground/70'
+                    }`}>
+                      {message.timestamp}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
               
-              <div className="flex gap-3 ml-auto flex-row-reverse">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/10">
-                  <div className="w-4 h-4 rounded-full bg-primary/80"></div>
-                </div>
-                <div className="bg-primary text-primary-foreground p-3 rounded-lg rounded-tr-none max-w-[85%]">
-                  <p className="text-sm">I need assistance with the new quantum encryption protocol.</p>
-                  <div className="text-xs mt-1 opacity-70 text-right text-primary-foreground/70">
-                    08:43
+              {isProcessing && (
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/20">
+                    <Bot size={16} className="text-primary" />
+                  </div>
+                  <div className="bg-muted/70 p-3 rounded-lg rounded-tl-none max-w-[85%] backdrop-blur-sm border border-border/20">
+                    <div className="flex space-x-1 items-center">
+                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce delay-150"></div>
+                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce delay-300"></div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/20">
-                  <Bot size={16} className="text-primary" />
-                </div>
-                <div className="bg-muted/70 p-3 rounded-lg rounded-tl-none max-w-[85%] backdrop-blur-sm border border-border/20">
-                  <p className="text-sm">I've analyzed the quantum encryption protocol. The key distribution method uses entangled particles for secure communication. Would you like me to explain the implementation steps?</p>
-                  <div className="text-xs mt-1 opacity-70 text-right text-muted-foreground">
-                    08:44
+              {isRecording && (
+                <div className="flex gap-3 ml-auto flex-row-reverse">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-red-500/20 animate-pulse">
+                    <Mic size={16} className="text-red-500" />
+                  </div>
+                  <div className="bg-red-500/10 text-muted-foreground p-3 rounded-lg rounded-tr-none max-w-[85%] border border-red-500/20">
+                    <p className="text-sm">Recording{transcript ? `: ${transcript}` : "..."}</p>
                   </div>
                 </div>
-              </div>
+              )}
+              
+              <div ref={messagesEndRef} />
             </div>
           </div>
           
-          <div className="h-12 border-t border-border/30 p-2 flex items-center gap-2 bg-card/90">
+          <form onSubmit={handleInputSubmit} className="h-12 border-t border-border/30 p-2 flex items-center gap-2 bg-card/90">
             <input 
               className="flex-1 bg-muted/30 border-none text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" 
               placeholder="Type your message..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              disabled={isRecording}
             />
-            <Button size="sm" className="h-8 w-8 p-0 bg-primary/90 hover:bg-primary text-primary-foreground">
+            <Button type="submit" size="sm" className="h-8 w-8 p-0 bg-primary/90 hover:bg-primary text-primary-foreground">
               <Send size={14} />
             </Button>
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-              <Zap size={14} className="text-primary" />
+            <Button 
+              type="button"
+              size="sm" 
+              variant={isRecording ? "destructive" : "ghost"} 
+              className={`h-8 w-8 p-0 ${isRecording ? 'animate-pulse' : ''}`}
+              onClick={toggleRecording}
+            >
+              {isRecording ? <MicOff size={14} /> : <Mic size={14} className="text-primary" />}
             </Button>
-          </div>
+            <Button 
+              type="button"
+              size="sm" 
+              variant="ghost" 
+              className="h-8 w-8 p-0"
+              onClick={() => {
+                const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+                if (lastAssistantMessage) {
+                  speak(lastAssistantMessage.content);
+                }
+              }}
+            >
+              {isSpeaking ? <VolumeX size={14} className="text-primary" /> : <Volume size={14} className="text-primary" />}
+            </Button>
+          </form>
         </div>
       </div>
     </div>
