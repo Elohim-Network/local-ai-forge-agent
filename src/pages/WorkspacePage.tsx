@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { 
   ResizableHandle, 
   ResizablePanel, 
@@ -17,14 +17,19 @@ import { toast } from "@/hooks/use-toast";
 
 const WorkspacePage = () => {
   const [showPreview, setShowPreview] = useState(true);
-  
-  const handleTestVoice = useCallback(() => {
+  // Use refs to maintain stable references to functions
+  const testVoiceRef = useRef<() => void>(() => {
     console.log("Testing voice recording functionality");
     toast({
       title: "Voice Test",
       description: "Testing microphone access and audio recording..."
     });
     testVoiceRecording();
+  });
+  
+  // Make sure callbacks are stable across renders
+  const handleTestVoice = useCallback(() => {
+    testVoiceRef.current();
   }, []);
   
   const togglePreview = useCallback(() => {

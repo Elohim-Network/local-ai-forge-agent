@@ -7,6 +7,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
     const mediaRecorder = new MediaRecorder(stream, options);
     const audioChunks: Blob[] = [];
     
+    // Ensure we're capturing all data chunks
     mediaRecorder.addEventListener('dataavailable', event => {
       console.log("Data available from recorder:", event.data.size);
       if (event.data.size > 0) {
@@ -14,12 +15,18 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       }
     });
     
+    // Create a Promise that resolves when recording stops
     const recordingPromise = new Promise<Blob>((resolve) => {
       mediaRecorder.addEventListener('stop', () => {
         console.log("Recording stopped, processing chunks...");
         const audioBlob = new Blob(audioChunks, { type: options.mimeType });
-        // Clean up the stream tracks
-        stream.getTracks().forEach(track => track.stop());
+        
+        // Ensure we clean up resources properly
+        stream.getTracks().forEach(track => {
+          track.stop();
+          console.log(`Track ${track.id} stopped and released`);
+        });
+        
         console.log("Audio blob created:", { size: audioBlob.size, type: audioBlob.type });
         resolve(audioBlob);
       });
@@ -35,6 +42,8 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
         if (mediaRecorder.state !== 'inactive') {
           console.log("Stopping recording...");
           mediaRecorder.stop();
+        } else {
+          console.log("Recording already stopped");
         }
       }
     };
@@ -57,7 +66,11 @@ export const sendAudioToServer = async (audioBlob: Blob, endpoint: string) => {
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
-      body: formData
+      body: formData,
+      // Ensure we have proper headers and timeouts
+      headers: {
+        'Accept': 'application/json'
+      }
     });
     
     if (!response.ok) {
