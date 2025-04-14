@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import env from "@/lib/config/environment";
 import { useEnv } from "@/lib/config/useEnv";
+import { toast } from "@/hooks/use-toast";
 
 // Define types for our system status
 export type ModelStatus = "active" | "downloading" | "available" | "not-installed" | "error";
