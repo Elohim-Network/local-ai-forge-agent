@@ -71,6 +71,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { sendToMistralStream } from "@/api/sendToMistral";
 
 export interface Message {
   id: string;
@@ -112,73 +113,85 @@ const DEFAULT_SETTINGS: ChatSettings = {
 
 const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("mistral");
+  const [currentStreamingMessage, setCurrentStreamingMessage] = useState("");
 
-  const sendToLocalModel = async (message: string, model: string) => {
-    let endpoint = "http://localhost:11434/v1/chat/completions";
-    let requestBody: any = {
-      model: "mistral",
-      messages: [
-        {
-          role: "system",
-          content: "You are Elohim, a helpful AI assistant with enhanced capabilities."
-        },
-        ...messages.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
-        { role: "user", content: message }
-      ],
-      temperature: 0.7,
-      max_tokens: 800
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isProcessing) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: inputValue.trim(),
+      role: "user",
+      timestamp: new Date(),
+      type: "text"
     };
-    
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue("");
+    setIsProcessing(true);
+    setCurrentStreamingMessage("");
+
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
+      // Create temporary message for streaming
+      const tempMessageId = (Date.now() + 1).toString();
+      setMessages(prev => [...prev, {
+        id: tempMessageId,
+        content: "",
+        role: "assistant",
+        timestamp: new Date(),
+        type: "text"
+      }]);
+
+      await sendToMistralStream(inputValue, (token) => {
+        setCurrentStreamingMessage(prev => prev + token);
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempMessageId 
+            ? { ...msg, content: prev.find(m => m.id === tempMessageId)?.content + token } 
+            : msg
+        ));
       });
-      
-      if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      const responseMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: data.choices[0].message.content,
-        role: "assistant",
-        timestamp: new Date(),
-        type: "text"
-      };
-      
-      setMessages(prev => [...prev, responseMessage]);
     } catch (error) {
-      console.error("Error connecting to Ollama model:", error);
-      
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: `I couldn't connect to the local Ollama model at ${endpoint}. Please check that Ollama is running.`,
-        role: "assistant",
-        timestamp: new Date(),
-        type: "text"
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      toast({
+        title: "Error",
+        description: "Failed to connect to Mistral. Please ensure the local model is running.",
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
+      setCurrentStreamingMessage("");
     }
   };
 
   return (
-    <div>
-      {/* Placeholder for ChatPage implementation */}
-      <p>ChatPage is a work in progress</p>
+    <div className="container mx-auto p-4 max-w-4xl">
+      <Card className="h-[80vh] flex flex-col">
+        <div className="p-4 border-b">
+          <ModelSelector onModelChange={() => {}} selectedModel="mistral" />
+        </div>
+        
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <ChatMessage key={message.id} message={message} />
+            ))}
+          </div>
+        </ScrollArea>
+
+        <form onSubmit={handleSubmit} className="p-4 border-t flex gap-2">
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Type your message..."
+            disabled={isProcessing}
+          />
+          <Button type="submit" disabled={isProcessing}>
+            {isProcessing ? <Bot className="animate-spin" /> : <Send />}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 };
