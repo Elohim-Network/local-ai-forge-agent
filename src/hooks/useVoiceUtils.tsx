@@ -1,4 +1,3 @@
-
 // This file contains utility functions for voice recording and processing
 
 export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) => {
@@ -88,38 +87,13 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
             return;
           }
           
-          // Create a quick audio element to verify the blob
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
+          // Ensure we clean up resources properly
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log(`Track ${track.id} stopped and released`);
+          });
           
-          audio.onloadedmetadata = () => {
-            console.log(`Verified audio duration: ${audio.duration}s`);
-            
-            // Only accept recordings longer than 0.5 seconds
-            if (audio.duration < 0.5) {
-              reject(new Error("Recording too short. Please speak for at least a second."));
-              return;
-            }
-            
-            // Release the URL object
-            URL.revokeObjectURL(audioUrl);
-            
-            // Ensure we clean up resources properly
-            stream.getTracks().forEach(track => {
-              track.stop();
-              console.log(`Track ${track.id} stopped and released`);
-            });
-            
-            resolve(audioBlob);
-          };
-          
-          audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl);
-            reject(new Error("Error verifying audio recording"));
-          };
-          
-          // Load the audio metadata
-          audio.load();
+          resolve(audioBlob);
         } catch (error) {
           console.error("Error creating audio blob:", error);
           // Ensure we clean up resources properly even on error
@@ -129,15 +103,9 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       });
     });
     
-    // Make sure we request data frequently to avoid missing any audio
-    const dataInterval = setInterval(() => {
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.requestData();
-      }
-    }, 500); // Request data more frequently (every 500ms)
-    
+    // Start recording with longer time slices to ensure we get enough data
     console.log("Starting audio recording...");
-    mediaRecorder.start(100); // Request data every 100ms
+    mediaRecorder.start(200); // Use longer time slices (200ms)
     
     return {
       mediaRecorder,
@@ -145,8 +113,12 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       stopRecording: () => {
         if (mediaRecorder.state !== 'inactive') {
           console.log("Stopping recording...");
-          clearInterval(dataInterval);
           mediaRecorder.stop();
+          
+          // Request data one final time when stopping
+          if (mediaRecorder.state !== 'inactive') {
+            mediaRecorder.requestData();
+          }
         } else {
           console.log("Recording already stopped");
         }
@@ -159,7 +131,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
               console.log(`Force stopping track ${track.id}`);
             }
           });
-        }, 1000);
+        }, 500);
       }
     };
   } catch (error) {

@@ -30,6 +30,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
       
       // Try to get a better voice if available
       const voices = window.speechSynthesis.getVoices();
+      console.log("Available voices:", voices.length);
+      
       const preferredVoices = voices.filter(voice => 
         voice.name.includes('Google') || 
         voice.name.includes('Natural') || 
@@ -38,17 +40,21 @@ export function ChatMessage({ message }: ChatMessageProps) {
       
       if (preferredVoices.length > 0) {
         utterance.voice = preferredVoices[0];
+        console.log("Using preferred voice:", preferredVoices[0].name);
       }
       
       utterance.onend = () => {
         setIsSpeaking(false);
       };
       
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        console.error("Speech synthesis error:", e);
         setIsSpeaking(false);
       };
       
       window.speechSynthesis.speak(utterance);
+    } else {
+      console.error("Speech synthesis not supported in this browser");
     }
   };
   
@@ -92,10 +98,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
             size="sm" 
             className={cn(
               "p-0 h-6 w-6",
-              isUser ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              isUser ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              isSpeaking ? "animate-pulse" : ""
             )}
             onClick={speakMessage}
             disabled={isSpeaking}
+            title="Listen to message"
           >
             <Volume2 size={14} className={isSpeaking ? "animate-pulse" : ""} />
             <span className="sr-only">Listen</span>

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +17,6 @@ import {
 } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -37,13 +35,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Upload, Info, Mic, Headphones, MessageSquare } from "lucide-react";
 
 interface ChatSettingsProps {
   settings: ChatSettings;
-  onSaveSettings: (settings: ChatSettings) => void; // Changed from onSave to onSaveSettings
+  onSaveSettings: (settings: ChatSettings) => void; 
 }
 
 export interface ChatSettings {
@@ -74,13 +71,13 @@ const DEFAULT_SETTINGS: ChatSettings = {
   },
   voice: {
     enabled: false,
-    voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah by default
+    voiceId: "EXAVITQu4vr4xnSDxMaL",
     autoListen: false,
     volume: 0.8,
     continuousListening: false,
     silenceTimeout: 1500,
     minConfidence: 0.5,
-    autoSendThreshold: 15, // Default character threshold for auto-sending
+    autoSendThreshold: 15,
     useCustomVoice: false,
     customVoiceId: "",
     customVoiceName: "My Voice",
@@ -88,7 +85,6 @@ const DEFAULT_SETTINGS: ChatSettings = {
   },
 };
 
-// Extended voices list with more realistic options
 const VOICE_OPTIONS = [
   { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah (Natural)" },
   { id: "FGY2WhTYpPnrIDTdsKH5", name: "Laura (Natural)" },
@@ -116,19 +112,15 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
   const [recordingTimer, setRecordingTimer] = useState<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState("voice");
 
-  // Mock function for voice cloning
   const handleVoiceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Show progress toast
       toast({
         title: "Processing voice sample",
         description: "Analyzing voice characteristics...",
       });
       
-      // Simulate processing
       setTimeout(() => {
-        // Update settings with "cloned" voice
         const customVoiceId = "custom-" + Math.random().toString(36).substring(2, 10);
         setLocalSettings({
           ...localSettings,
@@ -140,7 +132,6 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
           },
         });
         
-        // Success toast
         toast({
           title: "Voice sample processed",
           description: "Your custom voice is ready to use.",
@@ -155,14 +146,12 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
     setIsRecording(true);
     setRecordingTime(0);
     
-    // Start timer
     const timer = setInterval(() => {
       setRecordingTime(prev => prev + 1);
     }, 1000);
     
     setRecordingTimer(timer);
     
-    // Request microphone access
     navigator.mediaDevices.getUserMedia({ audio: true })
       .catch(error => {
         console.error("Error accessing microphone:", error);
@@ -178,7 +167,6 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
   const stopRecording = () => {
     setIsRecording(false);
     
-    // Clear timer
     if (recordingTimer) {
       clearInterval(recordingTimer);
       setRecordingTimer(null);
@@ -193,13 +181,11 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
       return;
     }
     
-    // Simulate processing
     toast({
       title: "Processing voice recording",
       description: "Analyzing voice characteristics...",
     });
     
-    // Simulate successful processing
     setTimeout(() => {
       const customVoiceId = "recorded-" + Math.random().toString(36).substring(2, 10);
       setLocalSettings({
@@ -222,7 +208,7 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
   };
 
   const handleSave = () => {
-    onSaveSettings(localSettings); // Changed from onSaveSettings to match the prop name
+    onSaveSettings(localSettings);
     toast({
       title: "Settings saved",
       description: "Your chat settings have been updated.",
@@ -414,7 +400,6 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
                             voice: { 
                               ...localSettings.voice, 
                               continuousListening: checked,
-                              // If enabling hands-free, make sure auto-listen is also on
                               autoListen: checked ? true : localSettings.voice.autoListen 
                             },
                           })
@@ -557,7 +542,6 @@ export function ChatSettings({ onSaveSettings, settings = DEFAULT_SETTINGS }: Ch
         </DialogContent>
       </Dialog>
 
-      {/* Voice Sample Upload Dialog */}
       <AlertDialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
