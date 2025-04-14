@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -6,7 +5,7 @@ import {
   Mic, 
   Bot, 
   Briefcase, 
-  VoiceNetwork, 
+  Network, 
   BarChart, 
   Lock, 
   MessageSquare 
@@ -14,7 +13,6 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
 
-// A reusable component for module placeholders
 export const ModulePlaceholder = ({ 
   title, 
   description, 
@@ -31,7 +29,6 @@ export const ModulePlaceholder = ({
   const handleActivate = () => {
     setIsActivating(true);
     
-    // Simulate activation process
     setTimeout(() => {
       setIsActivating(false);
       
@@ -109,7 +106,7 @@ export const ElohimModulesGrid = () => {
       <ModulePlaceholder
         title="Voice Cloning"
         description="Train custom voices for your content"
-        icon={VoiceNetwork}
+        icon={Network}
       />
       <ModulePlaceholder
         title="Analytics Dashboard"
