@@ -17,7 +17,16 @@
 
 // For demo purposes, this function simulates what the backend would do
 export async function simulateTranscription(audioBlob: Blob): Promise<{transcript: string}> {
-  console.log("Simulating transcription of audio blob:", { size: audioBlob.size, type: audioBlob.type });
+  console.log("Simulating transcription of audio blob:", { 
+    size: audioBlob.size, 
+    type: audioBlob.type 
+  });
+  
+  // Verify that we actually have audio data to transcribe
+  if (!audioBlob || audioBlob.size <= 0) {
+    console.error("Empty audio blob received for transcription");
+    throw new Error("No audio data was recorded. Please check your microphone and try again.");
+  }
   
   // In a real implementation, you would:
   // 1. Send the audio to Whisper API or another STT service

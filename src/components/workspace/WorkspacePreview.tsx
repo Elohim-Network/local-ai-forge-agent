@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Bot, Send, Zap, Shield, Monitor, Smartphone, Tablet, Mic, MicOff, Volume, VolumeX } from "lucide-react";
 import { useVoice } from "@/hooks/useVoice";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -20,6 +21,7 @@ export function WorkspacePreview() {
     }
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [recordingAttempted, setRecordingAttempted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -29,6 +31,7 @@ export function WorkspacePreview() {
     isRecording, 
     isSpeaking, 
     transcript, 
+    isProcessing: isVoiceProcessing,
     startRecording, 
     stopRecording, 
     speak 
@@ -53,8 +56,9 @@ export function WorkspacePreview() {
   useEffect(() => {
     // Slight delay to ensure the voice is ready
     const timer = setTimeout(() => {
+      console.log("Attempting to speak welcome message");
       speak("Welcome to Elohim. How may I assist you today?");
-    }, 1000);
+    }, 1500);
     
     return () => clearTimeout(timer);
   }, [speak]);
@@ -65,8 +69,16 @@ export function WorkspacePreview() {
 
   const handleTranscription = (text: string) => {
     if (text.trim()) {
+      console.log("Received transcription:", text);
       addMessage("user", text);
       generateResponse(text);
+    } else {
+      console.warn("Received empty transcription");
+      toast({
+        title: "Empty Transcription",
+        description: "No speech was detected. Please try speaking again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -117,10 +129,22 @@ export function WorkspacePreview() {
   };
 
   const toggleRecording = () => {
+    setRecordingAttempted(true);
+    
     if (isRecording) {
+      console.log("Stopping recording");
       stopRecording();
     } else {
+      console.log("Starting recording");
       startRecording();
+      
+      // Set a safety timeout in case recording doesn't stop automatically
+      setTimeout(() => {
+        if (isRecording) {
+          console.log("Safety timeout: forcing recording to stop");
+          stopRecording();
+        }
+      }, 10000);
     }
   };
 
@@ -223,14 +247,31 @@ export function WorkspacePreview() {
                 </div>
               )}
               
-              {isRecording && (
+              {(isRecording || isVoiceProcessing) && (
                 <div className="flex gap-3 ml-auto flex-row-reverse">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-red-500/20 animate-pulse">
                     <Mic size={16} className="text-red-500" />
                   </div>
                   <div className="bg-red-500/10 text-muted-foreground p-3 rounded-lg rounded-tr-none max-w-[85%] border border-red-500/20">
-                    <p className="text-sm">Recording{transcript ? `: ${transcript}` : "..."}</p>
+                    <p className="text-sm">
+                      {isVoiceProcessing ? "Processing..." : isRecording ? (transcript ? `Recording: ${transcript}` : "Recording...") : ""}
+                    </p>
                   </div>
+                </div>
+              )}
+              
+              {recordingAttempted && !isRecording && !transcript && messages.length <= 1 && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
+                  <p className="flex items-center gap-1.5">
+                    <Mic size={16} className="text-amber-500" />
+                    <span className="text-amber-600 font-medium">Microphone Tips:</span>
+                  </p>
+                  <ul className="mt-2 space-y-1 pl-5 list-disc text-muted-foreground">
+                    <li>Check that your browser has microphone permissions</li>
+                    <li>Speak clearly into your microphone</li>
+                    <li>Try using Chrome or Edge for best compatibility</li>
+                    <li>Click and hold the mic button while speaking</li>
+                  </ul>
                 </div>
               )}
               

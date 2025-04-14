@@ -1,101 +1,72 @@
 
-import { simulateTranscription } from "../api/transcribe";
-import { toast } from "@/hooks/use-toast";
+// Import the startAudioRecording function from our utility file
+import { startAudioRecording } from "../hooks/useVoiceUtils";
 
 /**
- * This is a utility to help test voice recording and transcription
- * without needing a real backend endpoint.
+ * Tests voice recording capabilities in the browser
+ * This helps diagnose issues with microphone access and recording
  */
-export async function testVoiceRecording() {
+export async function testVoiceRecording(): Promise<string> {
+  console.log("Starting voice recording test");
+  
   try {
-    // Request microphone access
+    // First check if the MediaRecorder API is available
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error("MediaRecorder API is not supported in this browser. Try using Chrome or Edge.");
+    }
+    
+    // Next check if we can access user media
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("Successfully accessed microphone", stream);
     
-    toast({
-      title: "Recording Started",
-      description: "Speak now. Recording will stop after 5 seconds.",
-    });
-    
-    // Set up the MediaRecorder
-    const mediaRecorder = new MediaRecorder(stream);
-    const audioChunks: Blob[] = [];
-    
-    // Collect audio data
-    mediaRecorder.addEventListener('dataavailable', event => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    });
-    
-    // When recording stops, process the audio
-    mediaRecorder.addEventListener('stop', async () => {
-      // Stop all tracks to release the microphone
+    // Check for audio tracks
+    const audioTracks = stream.getAudioTracks();
+    if (!audioTracks || audioTracks.length === 0) {
+      // Clean up stream
       stream.getTracks().forEach(track => track.stop());
-      
-      // Create a blob from all the chunks
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      
-      toast({
-        title: "Processing Audio",
-        description: "Transcribing your recording...",
-      });
-      
-      try {
-        // Use our simulated transcription function
-        const result = await simulateTranscription(audioBlob);
-        
-        toast({
-          title: "Transcription Result",
-          description: result.transcript,
-        });
-        
-        // Create an audio element to play back the recording
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        
-        // Add a button to the DOM to play the recording
-        const playButton = document.createElement('button');
-        playButton.innerText = 'Play Recording';
-        playButton.className = 'fixed bottom-4 right-4 bg-primary text-white px-4 py-2 rounded-lg shadow-lg';
-        playButton.onclick = () => {
-          audio.play();
-        };
-        
-        document.body.appendChild(playButton);
-        
-        // Remove the button after 10 seconds
-        setTimeout(() => {
-          if (document.body.contains(playButton)) {
-            document.body.removeChild(playButton);
-          }
-        }, 10000);
-        
-      } catch (error) {
-        console.error("Error processing audio:", error);
-        toast({
-          title: "Transcription Error",
-          description: "Failed to process the recording.",
-          variant: "destructive"
-        });
-      }
-    });
+      throw new Error("No audio tracks detected. Please check your microphone.");
+    }
     
-    // Start recording
-    mediaRecorder.start();
+    console.log(`Found ${audioTracks.length} audio tracks:`, audioTracks.map(t => t.label));
     
-    // Stop recording after 5 seconds
+    // Release the initial test stream
+    stream.getTracks().forEach(track => track.stop());
+    
+    // Now try recording a sample using our utility function
+    const { mediaRecorder, recordingPromise, stopRecording } = await startAudioRecording();
+    console.log("MediaRecorder created successfully", mediaRecorder);
+    
+    // Record for 2 seconds
     setTimeout(() => {
-      if (mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-      }
-    }, 5000);
+      console.log("Stopping test recording");
+      stopRecording();
+    }, 2000);
     
+    // Wait for the recording to complete
+    const audioBlob = await recordingPromise;
+    console.log("Test recording completed", { size: audioBlob.size, type: audioBlob.type });
+    
+    if (!audioBlob || audioBlob.size === 0) {
+      throw new Error("No audio data was captured. Please check if your microphone is working properly.");
+    }
+    
+    // Create an audio element to check if the recording worked
+    const audioURL = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioURL);
+    
+    return "Voice recording test successful. Your microphone is working correctly.";
   } catch (error) {
-    console.error("Error accessing microphone:", error);
-    toast({
-      title: "Microphone Access Denied",
-      description: "Please allow microphone access to use this feature.",
-      variant: "destructive"
-    });
+    console.error("Voice recording test failed:", error);
+    
+    // Provide user-friendly error messages based on common issues
+    if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+      throw new Error("Microphone access denied. Please allow microphone permissions in your browser settings.");
+    } else if (error.name === 'NotFoundError' || error.message.includes('No devices found')) {
+      throw new Error("No microphone detected. Please connect a microphone and try again.");
+    } else if (error.name === 'NotReadableError' || error.message.includes('Could not start audio source')) {
+      throw new Error("Could not access microphone. Your microphone might be in use by another application.");
+    } else {
+      throw new Error(`Microphone test failed: ${error.message || "Unknown error"}`);
+    }
   }
 }

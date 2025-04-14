@@ -4,8 +4,30 @@
 export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) => {
   try {
     console.log("Starting audio recording with options:", options);
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream, options);
+    
+    // Check if MediaRecorder is available in the browser
+    if (!window.MediaRecorder) {
+      throw new Error("MediaRecorder is not supported in this browser");
+    }
+    
+    // Get user media with explicit error handling
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: { 
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      } 
+    });
+    
+    // Create media recorder with supported options
+    let mediaRecorder;
+    try {
+      mediaRecorder = new MediaRecorder(stream, options);
+    } catch (err) {
+      console.warn("Failed to create MediaRecorder with specified options, trying default options");
+      mediaRecorder = new MediaRecorder(stream);
+    }
+    
     const audioChunks: Blob[] = [];
     
     // Enhanced event logging for debugging voice flow
@@ -13,33 +35,63 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       console.log("MediaRecorder started successfully");
     });
     
-    // Ensure we're capturing all data chunks
+    // Ensure we're capturing all data chunks with proper error handling
     mediaRecorder.addEventListener('dataavailable', event => {
       console.log("Data available from recorder:", event.data.size);
-      if (event.data.size > 0) {
+      if (event.data && event.data.size > 0) {
         audioChunks.push(event.data);
+      } else {
+        console.warn("Received empty audio data chunk");
       }
     });
     
+    // Add error handling for MediaRecorder
+    mediaRecorder.addEventListener('error', (event) => {
+      console.error("MediaRecorder error:", event);
+    });
+    
     // Create a Promise that resolves when recording stops
-    const recordingPromise = new Promise<Blob>((resolve) => {
+    const recordingPromise = new Promise<Blob>((resolve, reject) => {
       mediaRecorder.addEventListener('stop', () => {
         console.log("Recording stopped, processing chunks:", audioChunks.length);
-        const audioBlob = new Blob(audioChunks, { type: options.mimeType });
         
-        // Ensure we clean up resources properly
-        stream.getTracks().forEach(track => {
-          track.stop();
-          console.log(`Track ${track.id} stopped and released`);
-        });
+        if (audioChunks.length === 0) {
+          reject(new Error("No audio data was captured"));
+          return;
+        }
         
-        console.log("Audio blob created:", { size: audioBlob.size, type: audioBlob.type });
-        resolve(audioBlob);
+        try {
+          const audioBlob = new Blob(audioChunks, { type: options.mimeType });
+          console.log("Audio blob created:", { size: audioBlob.size, type: audioBlob.type });
+          
+          if (audioBlob.size === 0) {
+            reject(new Error("Created audio blob is empty"));
+            return;
+          }
+          
+          // Ensure we clean up resources properly
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log(`Track ${track.id} stopped and released`);
+          });
+          
+          resolve(audioBlob);
+        } catch (error) {
+          console.error("Error creating audio blob:", error);
+          reject(error);
+        }
       });
     });
     
+    // Make sure we request data frequently to avoid missing any audio
+    const dataInterval = setInterval(() => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.requestData();
+      }
+    }, 1000);
+    
     console.log("Starting audio recording...");
-    mediaRecorder.start();
+    mediaRecorder.start(100); // Request data every 100ms
     
     return {
       mediaRecorder,
@@ -47,6 +99,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
       stopRecording: () => {
         if (mediaRecorder.state !== 'inactive') {
           console.log("Stopping recording...");
+          clearInterval(dataInterval);
           mediaRecorder.stop();
         } else {
           console.log("Recording already stopped");
@@ -55,7 +108,7 @@ export const startAudioRecording = async (options = { mimeType: 'audio/webm' }) 
     };
   } catch (error) {
     console.error("Error accessing microphone:", error);
-    throw new Error(`Microphone access denied: ${error}`);
+    throw new Error(`Microphone access error: ${error.message || "Unknown error"}`);
   }
 };
 
