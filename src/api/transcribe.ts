@@ -22,8 +22,11 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
     type: audioBlob.type 
   });
   
-  // Always simulate a successful transcription for testing purposes
-  // In a real implementation, you would check the blob validity
+  // Make sure we have valid audio data
+  if (audioBlob.size <= 44) { // 44 bytes is the size of a WAV header with no audio data
+    console.warn("Audio blob is too small, may not contain valid audio data");
+    return { transcript: "I couldn't hear anything. Please try speaking louder or check your microphone." };
+  }
   
   // For testing, we'll return simulated responses very quickly (100-300ms)
   return new Promise((resolve) => {
@@ -54,9 +57,6 @@ export async function simulateTranscription(audioBlob: Blob): Promise<{transcrip
         "Does this work on mobile devices?",
         "What's new in the latest update?"
       ];
-      
-      // For testing purposes, always return a valid response
-      // In real implementation, you would actually process the audio blob
       
       // Use a simplified random selection
       const index = Math.floor(Math.random() * responses.length);

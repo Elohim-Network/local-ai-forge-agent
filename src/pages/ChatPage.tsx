@@ -144,6 +144,9 @@ const ChatPage = () => {
   const isMobile = useMobileScreen();
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+  
   const { 
     sessions, 
     currentSessionId, 
@@ -566,24 +569,27 @@ const ChatPage = () => {
         } else {
           console.log("Sending to local model:", selectedModel);
           
-          // For testing purposes, let's add a fallback that always works
-          // This ensures users can see the chat working even without a local model
-          try {
-            await sendToLocalModel(messageText, selectedModel);
-          } catch (error) {
-            console.error("Failed to connect to local model - using fallback response");
-            
-            // Add a fallback response that always works
-            const fallbackResponse: Message = {
-              id: (Date.now() + 1).toString(),
-              content: "I'm currently running in demo mode. To use my full capabilities, please ensure your local model server is running. In the meantime, I can still help with basic tasks and UI interactions.",
-              role: "assistant",
-              timestamp: new Date(),
-              type: "text"
-            };
-            
-            setMessages(prev => [...prev, fallbackResponse]);
+          // Try the local model first if connected
+          if (isConnected) {
+            try {
+              await sendToLocalModel(messageText, selectedModel);
+              return; // If successful, exit early
+            } catch (error) {
+              console.error("Failed to connect to local model - using fallback response");
+              // Continue to fallback
+            }
           }
+          
+          // Fallback response when not connected
+          const fallbackResponse: Message = {
+            id: (Date.now() + 1).toString(),
+            content: "I'm currently running in demo mode. To use the full capabilities, please ensure your local model server is running at http://localhost:8000. In the meantime, I'll respond with pre-defined messages.",
+            role: "assistant",
+            timestamp: new Date(),
+            type: "text"
+          };
+          
+          setMessages(prev => [...prev, fallbackResponse]);
         }
       }
     } catch (error) {
@@ -738,14 +744,20 @@ const ChatPage = () => {
       };
     }
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
     try {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`);
@@ -762,8 +774,10 @@ const ChatPage = () => {
       };
       
       setMessages(prev => [...prev, responseMessage]);
+      setIsConnected(true); // Successfully connected
     } catch (error) {
       console.error("Error connecting to model:", error);
+      setIsConnected(false);
       
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -774,8 +788,9 @@ const ChatPage = () => {
       };
       
       setMessages(prev => [...prev, errorMessage]);
+      throw error; // Re-throw to trigger fallback
     } finally {
-      setIsProcessing(false);
+      clearTimeout(timeoutId);
     }
   };
   
@@ -1085,6 +1100,52 @@ const ChatPage = () => {
     );
   };
   
+  const checkModelConnection = async () => {
+    if (selectedModel !== "mistral-7b" && selectedModel !== "llama-13b") {
+      // For non-LLM models like stable-diffusion, we don't need to check connection
+      return;
+    }
+    
+    try {
+      // Try to connect to the local model
+      const endpoint = "http://localhost:8000/v1/models";
+      
+      const response = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        signal: AbortSignal.timeout(2000)
+      });
+      
+      if (response.ok) {
+        console.log("Successfully connected to model server");
+        setIsConnected(true);
+        return;
+      }
+      
+      throw new Error(`API responded with status: ${response.status}`);
+    } catch (error) {
+      console.error("Error checking model connection:", error);
+      setIsConnected(false);
+      
+      // Only show the toast on the first failure or after multiple attempts
+      if (connectionAttempts === 0 || connectionAttempts > 2) {
+        toast({
+          title: "Model not connected",
+          description: "Local model server not found. Using fallback mode.",
+          variant: "destructive"
+        });
+      }
+      
+      setConnectionAttempts(prev => prev + 1);
+    }
+  };
+  
+  useEffect(() => {
+    checkModelConnection();
+  }, [selectedModel]);
+  
   return (
     <div ref={chatContainerRef} className={`
       h-full flex flex-col overflow-hidden 
@@ -1191,6 +1252,8 @@ const ChatPage = () => {
           <ModelSelector 
             selectedModel={selectedModel} 
             onSelectModel={setSelectedModel}
+            isConnected={isConnected}
+            onRetryConnection={checkModelConnection}
           />
         </div>
         
